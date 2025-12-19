@@ -5,60 +5,62 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>3D FPS Aim Trainer</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; font-family: sans-serif; touch-action: none; }
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; touch-action: none; }
         
-        /* UI Elements */
-        #ui { position: absolute; top: 20px; left: 20px; color: #00ffcc; font-size: 24px; pointer-events: none; z-index: 10; font-weight: bold; }
-        
+        #ui { position: absolute; top: 20px; left: 20px; color: #00ffcc; font-size: 20px; pointer-events: none; z-index: 10; }
+        .stat { margin-bottom: 5px; background: rgba(0,0,0,0.5); padding: 5px 10px; border-radius: 5px; display: inline-block; }
+
         #crosshair { 
             position: absolute; top: 50%; left: 50%; 
-            width: 14px; height: 14px; border: 2px solid #00ffcc; border-radius: 50%;
+            width: 16px; height: 16px; border: 2px solid #00ffcc; border-radius: 50%;
             transform: translate(-50%, -50%); pointer-events: none; z-index: 5;
         }
-        #crosshair::after {
-            content: ''; position: absolute; top: 50%; left: 50%;
-            width: 2px; height: 2px; background: #00ffcc; transform: translate(-50%, -50%);
-        }
 
-        /* Shoot Button for Mobile */
         #shoot-btn {
-            position: absolute; bottom: 40px; right: 40px;
-            width: 80px; height: 80px; background: rgba(255, 255, 255, 0.2);
-            border: 4px solid #00ffcc; border-radius: 50%;
+            position: absolute; bottom: 50px; right: 50px;
+            width: 90px; height: 90px; background: rgba(0, 255, 204, 0.1);
+            border: 3px solid #00ffcc; border-radius: 50%;
             display: flex; justify-content: center; align-items: center;
-            color: white; font-weight: bold; z-index: 30;
+            color: #00ffcc; font-weight: bold; z-index: 30;
             user-select: none; -webkit-tap-highlight-color: transparent;
         }
 
         #overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
-            background: rgba(0,0,0,0.9); color: white; z-index: 40;
+            background: rgba(0,0,0,0.95); color: white; z-index: 40; text-align: center;
         }
-        #countdown { font-size: 80px; color: #00ffcc; display: none; }
+        #countdown { font-size: 80px; color: #00ffcc; margin: 20px 0; }
+        button { padding: 15px 40px; font-size: 22px; background: #00ffcc; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
 
-    <div id="ui">SCORE: <span id="score">0</span></div>
+    <div id="ui">
+        <div class="stat">SCORE: <span id="score">0</span></div><br>
+        <div class="stat">TIME: <span id="timer">60</span>s</div>
+    </div>
+    
     <div id="crosshair"></div>
     <div id="shoot-btn">FIRE</div>
     
     <div id="overlay">
         <h1 id="msg">FPS AIM TRAINER</h1>
-        <p>Drag to AIM | Tap Button to FIRE</p>
-        <button id="start-trigger" style="padding: 15px 30px; font-size: 20px; background: #00ffcc; border: none; border-radius: 5px;">START GAME</button>
-        <div id="countdown">3</div>
+        <p id="sub-msg">Swipe to AIM | Button to FIRE</p>
+        <button id="start-btn">START SESSION</button>
+        <div id="countdown"></div>
     </div>
 
     <script type="module">
         import * as THREE from 'https://cdn.skypack.dev/three@0.136.0';
 
         let score = 0;
+        let timeLeft = 60;
         let gameActive = false;
+        let gameInterval, timerInterval;
         const targets = [];
         
-        // Aiming Logic
+        // Touch state
         let lon = 0, lat = 0;
         let phi = 0, theta = 0;
         let startX, startY, startLon, startLat;
@@ -79,32 +81,39 @@
         }
 
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x0a0a0a);
+        scene.background = new THREE.Color(0x050505);
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        // Grid floor to help with 3D depth
-        const grid = new THREE.GridHelper(100, 50, 0x444444, 0x222222);
-        grid.position.y = -5;
-        scene.add(grid);
-        scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+        scene.add(new THREE.GridHelper(100, 40, 0x00ffcc, 0x112222));
+        scene.add(new THREE.AmbientLight(0xffffff, 0.8));
 
-        // Game Start Logic
-        const startTrigger = document.getElementById('start-trigger');
-        startTrigger.addEventListener('click', () => {
+        const overlay = document.getElementById('overlay');
+        const startBtn = document.getElementById('start-btn');
+
+        startBtn.addEventListener('click', () => {
             if (audioCtx.state === 'suspended') audioCtx.resume();
-            startTrigger.style.display = 'none';
+            resetGame();
+            startBtn.style.display = 'none';
             document.getElementById('msg').style.display = 'none';
-            document.querySelector('#overlay p').style.display = 'none';
+            document.getElementById('sub-msg').style.display = 'none';
             startCountdown();
         });
+
+        function resetGame() {
+            score = 0;
+            timeLeft = 60;
+            document.getElementById('score').innerText = "0";
+            document.getElementById('timer').innerText = "60";
+            targets.forEach(t => scene.remove(t));
+            targets.length = 0;
+        }
 
         function startCountdown() {
             let count = 3;
             const cd = document.getElementById('countdown');
-            cd.style.display = 'block';
             cd.innerText = count;
             const timer = setInterval(() => {
                 count--;
@@ -113,61 +122,84 @@
                     playSound(440, 'sine', 0.1);
                 } else {
                     clearInterval(timer);
-                    document.getElementById('overlay').style.display = 'none';
-                    gameActive = true;
-                    spawnLoop();
+                    overlay.style.display = 'none';
+                    cd.innerText = "";
+                    startGame();
                 }
             }, 1000);
         }
 
-        function spawnLoop() {
+        function startGame() {
+            gameActive = true;
+            spawnTarget();
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                document.getElementById('timer').innerText = timeLeft;
+                if (timeLeft <= 0) endGame();
+            }, 1000);
+        }
+
+        function endGame() {
+            gameActive = false;
+            clearInterval(timerInterval);
+            overlay.style.display = 'flex';
+            document.getElementById('msg').innerText = "SESSION COMPLETE";
+            document.getElementById('msg').style.display = 'block';
+            document.getElementById('sub-msg').innerText = "FINAL SCORE: " + score;
+            document.getElementById('sub-msg').style.display = 'block';
+            startBtn.style.display = 'block';
+            startBtn.innerText = "TRY AGAIN";
+        }
+
+        function spawnTarget() {
             if (!gameActive) return;
-            const geo = new THREE.IcosahedronGeometry(0.8, 0);
-            const mat = new THREE.MeshBasicMaterial({ color: 0x00ffcc, wireframe: true });
+            const geo = new THREE.SphereGeometry(0.8, 16, 16);
+            const mat = new THREE.MeshPhongMaterial({ color: 0xff0055, emissive: 0x330000 });
             const target = new THREE.Mesh(geo, mat);
             
-            // Spawn in a semi-circle in front of the player
-            const angle = (Math.random() - 0.5) * Math.PI; // -90 to +90 degrees
+            const angle = (Math.random() - 0.5) * Math.PI * 1.2;
             const dist = 15 + Math.random() * 5;
-            target.position.set(Math.sin(angle) * dist, (Math.random() - 0.5) * 10, -Math.cos(angle) * dist);
+            target.position.set(Math.sin(angle) * dist, (Math.random() - 0.5) * 8 + 2, -Math.cos(angle) * dist);
             
             scene.add(target);
             targets.push(target);
             
             setTimeout(() => {
                 scene.remove(target);
-                targets.splice(targets.indexOf(target), 1);
-            }, 2500);
-            setTimeout(spawnLoop, 1000);
+                const idx = targets.indexOf(target);
+                if (idx > -1) targets.splice(idx, 1);
+            }, 2000);
+
+            setTimeout(spawnTarget, 800);
         }
 
-        // AIMING: Touch anywhere to look
+        // --- NORMAL TOUCH CONTROLS ---
         document.addEventListener('touchstart', (e) => {
             startX = e.touches[0].clientX;
             startY = e.touches[0].clientY;
             startLon = lon;
             startLat = lat;
-        }, {passive: false});
+        });
 
         document.addEventListener('touchmove', (e) => {
             if (!gameActive) return;
-            const dx = startX - e.touches[0].clientX;
-            const dy = e.touches[0].clientY - startY;
-            lon = startLon + dx * 0.15; // Sensitivity
-            lat = startLat + dy * 0.15;
+            const dx = e.touches[0].clientX - startX; // Move finger Right -> DX is positive
+            const dy = startY - e.touches[0].clientY; // Move finger Up -> DY is positive
+            
+            // Sensitivity: 0.15. Adjust this to make it faster/slower.
+            lon = startLon - dx * 0.15; // Decreasing Lon turns the camera Right
+            lat = startLat + dy * 0.15; // Increasing Lat looks Up
+            
             lat = Math.max(-85, Math.min(85, lat));
-        }, {passive: false});
+        });
 
-        // SHOOTING: Only when clicking the dedicated button
-        const shootBtn = document.getElementById('shoot-btn');
-        shootBtn.addEventListener('touchstart', (e) => {
-            e.stopPropagation(); // Don't trigger aim logic
+        document.getElementById('shoot-btn').addEventListener('touchstart', (e) => {
+            e.stopPropagation();
             if (!gameActive) return;
 
-            playSound(150, 'sawtooth', 0.1, 0.1); // Gunshot sound
+            playSound(120, 'sawtooth', 0.1, 0.1); 
 
             const raycaster = new THREE.Raycaster();
-            // Fire from the exact center (0,0) where the crosshair is
             raycaster.setFromCamera({ x: 0, y: 0 }, camera);
             const intersects = raycaster.intersectObjects(targets);
             
@@ -177,7 +209,7 @@
                 targets.splice(targets.indexOf(hit), 1);
                 score++;
                 document.getElementById('score').innerText = score;
-                playSound(1000, 'sine', 0.1, 0.2); // Hit sound
+                playSound(1200, 'sine', 0.05, 0.2);
             }
         });
 
@@ -189,8 +221,6 @@
             const targetPos = new THREE.Vector3();
             targetPos.setFromSphericalCoords(100, phi, theta);
             camera.lookAt(targetPos);
-            
-            targets.forEach(t => t.rotation.y += 0.02);
             renderer.render(scene, camera);
         }
         animate();
