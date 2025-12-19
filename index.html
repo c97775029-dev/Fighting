@@ -1,245 +1,397 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>3D Aim Trainer Pro - Fixed</title>
-    <style>
-        :root { --neon: #00ffcc; }
-        body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; touch-action: none; color: white; }
-        
-        /* UI Layers */
-        .screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 40; background: rgba(0,0,0,0.9); }
-        .hidden { display: none !important; }
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
 
-        /* HUD */
-        #hud { position: absolute; top: 20px; left: 20px; pointer-events: none; z-index: 10; }
-        .stat { background: rgba(0,255,204,0.1); border: 1px solid var(--neon); padding: 8px 15px; border-radius: 4px; margin-bottom: 5px; font-weight: bold; }
+<title>3D Aim Trainer Pro</title>
 
-        /* Lobby Content */
-        h1 { font-size: 3rem; margin: 0; color: var(--neon); text-shadow: 0 0 15px var(--neon); }
-        .menu-card { background: rgba(255,255,255,0.05); padding: 30px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.1); width: 85%; max-width: 400px; text-align: center; }
-        .high-score { font-size: 1.2rem; color: #ffcc00; margin: 15px 0; }
-        
-        .setting-row { margin: 20px 0; display: flex; flex-direction: column; gap: 10px; }
-        input[type=range] { width: 100%; accent-color: var(--neon); }
-        button { background: var(--neon); color: black; border: none; padding: 15px 40px; font-size: 1.2rem; font-weight: bold; border-radius: 8px; cursor: pointer; width: 100%; }
-        
-        #crosshair { position: absolute; top: 50%; left: 50%; width: 20px; height: 20px; border: 2px solid var(--neon); border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; z-index: 5; opacity: 0.8; }
-        #shoot-btn { position: absolute; bottom: 40px; right: 40px; width: 100px; height: 100px; background: rgba(0, 255, 204, 0.2); border: 3px solid var(--neon); border-radius: 50%; display: flex; justify-content: center; align-items: center; z-index: 30; font-weight: bold; color: var(--neon); user-select: none; -webkit-tap-highlight-color: transparent; }
-    </style>
+<style>
+    :root { --neon: #00ffcc; }
+    body {
+        margin: 0;
+        overflow: hidden;
+        background: #000;
+        font-family: "Segoe UI", sans-serif;
+        touch-action: none;
+        color: white;
+    }
+
+    /* --- UI --- */
+    .screen {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        background: rgba(0,0,0,.92);
+        z-index: 20;
+    }
+    .hidden { display: none !important; }
+
+    #hud {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        pointer-events: none;
+        z-index: 10;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .stat {
+        background: rgba(0,255,204,.1);
+        border: 1px solid var(--neon);
+        padding: 7px 13px;
+        font-weight: bold;
+        border-radius: 4px;
+    }
+
+    #crosshair {
+        position: absolute;
+        width: 18px;
+        height: 18px;
+        border: 2px solid var(--neon);
+        border-radius: 50%;
+        inset: 50%;
+        transform: translate(-50%,-50%);
+        opacity: .7;
+        pointer-events: none;
+        z-index: 5;
+    }
+
+    #shoot-btn {
+        position: absolute;
+        bottom: 45px;
+        right: 45px;
+        width: 95px;
+        height: 95px;
+        border-radius: 50%;
+        border: 2px solid var(--neon);
+        background: rgba(0,255,204,.15);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        color: var(--neon);
+        font-weight: bold;
+        user-select:none;
+        z-index:30;
+        -webkit-tap-highlight-color: transparent;
+    }
+</style>
 </head>
+
 <body>
+    
+<div id="hud" class="hidden">
+    <div class="stat">SCORE: <span id="score-val">0</span></div>
+    <div class="stat">TIME: <span id="timer-val">60</span></div>
+</div>
 
-    <div id="hud" class="hidden">
-        <div class="stat">SCORE: <span id="score-val">0</span></div>
-        <div class="stat">TIME: <span id="timer-val">60</span>s</div>
-    </div>
-    <div id="crosshair" class="hidden"></div>
-    <div id="shoot-btn" class="hidden">FIRE</div>
+<div id="crosshair" class="hidden"></div>
+<div id="shoot-btn" class="hidden">FIRE</div>
 
-    <div id="lobby" class="screen">
-        <div class="menu-card">
-            <h1 id="main-title">AIM PRO</h1>
-            <div class="high-score">BEST: <span id="best-val">0</span></div>
-            
-            <div class="setting-row">
-                <label>SENSITIVITY: <span id="sens-label">0.15</span></label>
-                <input type="range" id="sens-slider" min="0.05" max="0.5" step="0.01" value="0.15">
-            </div>
+<!-- MENU -->
+<div id="menu" class="screen">
+    <h1 style="color:var(--neon);text-shadow:0 0 15px var(--neon)">AIM PRO</h1>
 
-            <button id="play-btn">START TRAINING</button>
-        </div>
+    <div style="margin:10px;font-size:1.2rem;color:#ff0">
+        BEST: <span id="best-val"></span>
     </div>
 
-    <div id="countdown-screen" class="screen hidden">
-        <h1 id="cd-number" style="font-size: 8rem;">3</h1>
+    <div style="width:300px;margin:25px 0">
+        Sensitivity:
+        <span id="sens-label">0.15</span>
+        <input id="sens-slider"
+            type="range"
+            min="0.05"
+            max="0.5"
+            value="0.15"
+            step="0.01"
+            style="width:100%">
     </div>
 
-    <script type="module">
-        import * as THREE from 'https://cdn.skypack.dev/three@0.136.0';
+    <button id="play-btn"
+        style="padding:15px 35px;
+        border:none;
+        background:var(--neon);
+        color:#000;
+        border-radius:8px;
+        font-size:1.2rem;
+        cursor:pointer">
+        START
+    </button>
+</div>
 
-        let score = 0, timeLeft = 60, gameActive = false, sensitivity = 0.15;
-        let targets = [], timerInterval, spawnTimer;
-        let lon = 0, lat = 0, startX, startY, startLon, startLat;
-        
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+<!-- COUNTDOWN -->
+<div id="count-screen" class="screen hidden">
+    <span id="cd-text" style="font-size:8rem;color:var(--neon)">3</span>
+</div>
 
-        // Load High Score
-        let bestScore = localStorage.getItem('aimProBest') || 0;
-        document.getElementById('best-val').innerText = bestScore;
+<script type="module">
+import * as THREE from "https://cdn.skypack.dev/three@0.136.0";
 
-        function playSound(freq, type, duration, vol=0.05) {
-            try {
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.type = type;
-                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-                gain.gain.setValueAtTime(vol, audioCtx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
-                osc.connect(gain); gain.connect(audioCtx.destination);
-                osc.start(); osc.stop(audioCtx.currentTime + duration);
-            } catch(e) {}
+/* =========
+   GAME STATE
+===========*/
+
+let score=0,
+    time=60,
+    gameRunning=false,
+    sensitivity=0.15;
+
+let targets=[];
+
+const bestSpan=document.getElementById("best-val");
+const best=localStorage.getItem("aimProBest")||0;
+bestSpan.textContent=best;
+
+/* =========
+   AUDIO
+===========*/
+
+const ctx=new (window.AudioContext||window.webkitAudioContext)();
+
+/* super cheap pooled sound generator */
+function ping(freq){
+    const o=ctx.createOscillator();
+    const g=ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.frequency.value=freq;
+    g.gain.value=0.1;
+    o.start();
+    o.stop(ctx.currentTime+.08);
+}
+
+/* =========
+   THREE CORE
+===========*/
+
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x030303);
+
+const cam=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,0.1,1000);
+cam.position.set(0,0,0);
+
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth,innerHeight);
+document.body.appendChild(renderer.domElement);
+
+scene.add(new THREE.AmbientLight(0xffffff,.9));
+
+/* big invisible room background */
+{
+    const g=new THREE.SphereGeometry(200,32,32);
+    const m=new THREE.MeshBasicMaterial({color:0x001010, side:THREE.BackSide});
+    scene.add(new THREE.Mesh(g,m));
+}
+
+const ray=new THREE.Raycaster();
+
+let lon=0,lat=0;
+let startX,startY,startLon,startLat;
+
+/* =========
+   TARGET SYSTEM
+===========*/
+
+const TARGET_SPEED=2000;
+const TARGET_POOL=[];
+const TARGET_MAX=8;
+
+/* pre-create 8 targets and recycle */
+{
+    const geo=new THREE.IcosahedronGeometry(0.8,0);
+    const mat=new THREE.MeshPhongMaterial({color:0x00ffcc, emissive:0x003322});
+
+    for(let i=0;i<TARGET_MAX;i++){
+        const t=new THREE.Mesh(geo,mat);
+        t.visible=false;
+        TARGET_POOL.push(t);
+        scene.add(t);
+    }
+}
+
+/* get next free target */
+function nextTarget(){
+    return TARGET_POOL.find(t=>!t.visible);
+}
+
+function spawn(){
+    if(!gameRunning) return;
+
+    const t=nextTarget();
+    if(!t) return; // all used
+
+    const a=(Math.random()-.5)*Math.PI*1.6;
+    const d=15+Math.random()*6;
+
+    t.position.set(
+        Math.sin(a)*d,
+        (Math.random()-.5)*7+2,
+        -Math.cos(a)*d
+    );
+
+    t.visible=true;
+
+    setTimeout(()=>{t.visible=false;}, TARGET_SPEED);
+}
+
+/* =========
+   CAMERA UPDATE
+===========*/
+
+function updateCamera(){
+    const phi=THREE.MathUtils.degToRad(90-lat);
+    const theta=THREE.MathUtils.degToRad(lon);
+
+    const v=new THREE.Vector3().setFromSphericalCoords(100,phi,theta);
+    cam.lookAt(v);
+}
+
+/* =========
+   GAME LOOP
+===========*/
+
+function loop(){
+    requestAnimationFrame(loop);
+    updateCamera();
+    renderer.render(scene,cam);
+}
+loop();
+
+/* =========
+   RESIZE
+===========*/
+
+addEventListener("resize",()=>{
+    cam.aspect=innerWidth/innerHeight;
+    cam.updateProjectionMatrix();
+    renderer.setSize(innerWidth,innerHeight);
+});
+
+/* =========
+   INPUT
+===========*/
+
+addEventListener("touchstart",e=>{
+    startX=e.touches[0].clientX;
+    startY=e.touches[0].clientY;
+    startLon=lon;
+    startLat=lat;
+});
+
+addEventListener("touchmove",e=>{
+    if(!gameRunning) return;
+    const dx=e.touches[0].clientX-startX;
+    const dy=startY-e.touches[0].clientY;
+
+    lon=startLon-dx*sensitivity;
+    lat=Math.min(85,Math.max(-85,startLat+dy*sensitivity));
+});
+
+/* =========
+   SHOOT
+===========*/
+
+document.getElementById("shoot-btn").addEventListener("touchstart",()=>{
+    if(!gameRunning) return;
+
+    ping(200);
+
+    ray.setFromCamera({x:0,y:0},cam);
+
+    const hits=ray.intersectObjects(TARGET_POOL.filter(t=>t.visible));
+    if(!hits.length) return;
+
+    hits[0].object.visible=false;
+    score++;
+    document.getElementById("score-val").textContent=score;
+    ping(1200);
+});
+
+/* =========
+   GAME CONTROL
+===========*/
+
+const hud=document.getElementById("hud");
+const menu=document.getElementById("menu");
+const cross=document.getElementById("crosshair");
+const shoot=document.getElementById("shoot-btn");
+
+function begin(){
+    menu.classList.add("hidden");
+    hud.classList.remove("hidden");
+    cross.classList.remove("hidden");
+    shoot.classList.remove("hidden");
+
+    score=0;
+    time=60;
+    gameRunning=true;
+
+    document.getElementById("score-val").textContent=0;
+    document.getElementById("timer-val").textContent=time;
+
+    const tick=setInterval(()=>{
+        if(!gameRunning){clearInterval(tick);return;}
+        time--;
+        document.getElementById("timer-val").textContent=time;
+        if(time<=0) end();
+    },1000);
+
+    setInterval(()=>gameRunning&&spawn(),400);
+}
+
+function end(){
+    gameRunning=false;
+
+    TARGET_POOL.forEach(t=>t.visible=false);
+
+    if(score>best){
+        localStorage.setItem("aimProBest",score);
+        bestSpan.textContent=score;
+    }
+
+    hud.classList.add("hidden");
+    cross.classList.add("hidden");
+    shoot.classList.add("hidden");
+
+    menu.classList.remove("hidden");
+}
+
+/* =========
+   UI
+===========*/
+
+document.getElementById("play-btn").onclick=()=>{
+
+    if(ctx.state==="suspended") ctx.resume();
+
+    menu.classList.add("hidden");
+    document.getElementById("count-screen").classList.remove("hidden");
+
+    let c=3;
+    const t=document.getElementById("cd-text");
+
+    const x=setInterval(()=>{
+        c--;
+        t.textContent=c;
+        ping(400);
+        if(c<=0){
+            clearInterval(x);
+            document.getElementById("count-screen").classList.add("hidden");
+            begin();
         }
+    },900);
+};
 
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x050505);
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(renderer.domElement);
+document.getElementById("sens-slider").oninput=e=>{
+    sensitivity=parseFloat(e.target.value);
+    document.getElementById("sens-label").textContent=sensitivity.toFixed(2);
+};
 
-        scene.add(new THREE.GridHelper(100, 40, 0x00ffcc, 0x112222));
-        scene.add(new THREE.AmbientLight(0xffffff, 0.8));
-
-        // Fix showScreen to prevent crashes
-        function showScreen(id) {
-            document.getElementById('lobby').classList.add('hidden');
-            document.getElementById('countdown-screen').classList.add('hidden');
-            const target = document.getElementById(id);
-            if (target) target.classList.remove('hidden');
-        }
-
-        document.getElementById('sens-slider').addEventListener('input', (e) => {
-            sensitivity = parseFloat(e.target.value);
-            document.getElementById('sens-label').innerText = sensitivity;
-        });
-
-        document.getElementById('play-btn').addEventListener('click', () => {
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-            showScreen('countdown-screen');
-            startCountdown();
-        });
-
-        function startCountdown() {
-            let count = 3;
-            const cd = document.getElementById('cd-number');
-            cd.innerText = count;
-            const interval = setInterval(() => {
-                count--;
-                if (count > 0) {
-                    cd.innerText = count;
-                    playSound(440, 'sine', 0.1);
-                } else {
-                    clearInterval(interval);
-                    startGame();
-                }
-            }, 1000);
-        }
-
-        function startGame() {
-            showScreen('none'); 
-            document.getElementById('hud').classList.remove('hidden');
-            document.getElementById('crosshair').classList.remove('hidden');
-            document.getElementById('shoot-btn').classList.remove('hidden');
-            
-            score = 0; timeLeft = 60; gameActive = true;
-            document.getElementById('score-val').innerText = "0";
-            document.getElementById('timer-val').innerText = "60";
-            
-            spawnLoop();
-            timerInterval = setInterval(() => {
-                timeLeft--;
-                document.getElementById('timer-val').innerText = timeLeft;
-                if (timeLeft <= 0) endGame();
-            }, 1000);
-        }
-
-        function endGame() {
-            gameActive = false;
-            clearInterval(timerInterval);
-            clearTimeout(spawnTimer);
-            targets.forEach(t => scene.remove(t)); targets.length = 0;
-            
-            if (score > bestScore) {
-                bestScore = score;
-                localStorage.setItem('aimProBest', bestScore);
-                document.getElementById('best-val').innerText = bestScore;
-            }
-
-            document.getElementById('hud').classList.add('hidden');
-            document.getElementById('crosshair').classList.add('hidden');
-            document.getElementById('shoot-btn').classList.add('hidden');
-            
-            showScreen('lobby');
-            document.getElementById('main-title').innerText = "SESSION OVER";
-            document.getElementById('play-btn').innerText = "RETRY";
-        }
-
-        function spawnLoop() {
-            if (!gameActive) return;
-            spawnTarget();
-            spawnTimer = setTimeout(spawnLoop, 800);
-        }
-
-        function spawnTarget() {
-            const geo = new THREE.IcosahedronGeometry(0.8, 0);
-            const mat = new THREE.MeshPhongMaterial({ color: 0x00ffcc, emissive: 0x003322 });
-            const target = new THREE.Mesh(geo, mat);
-            
-            const angle = (Math.random() - 0.5) * Math.PI * 1.5;
-            const dist = 15 + Math.random() * 5;
-            target.position.set(Math.sin(angle) * dist, (Math.random() - 0.5) * 8 + 2, -Math.cos(angle) * dist);
-            
-            scene.add(target);
-            targets.push(target);
-            
-            setTimeout(() => {
-                scene.remove(target);
-                const idx = targets.indexOf(target);
-                if (idx > -1) targets.splice(idx, 1);
-            }, 2000);
-        }
-
-        // --- IMPROVED CONTROLS ---
-        window.addEventListener('touchstart', (e) => {
-            startX = e.touches[0].clientX; startY = e.touches[0].clientY;
-            startLon = lon; startLat = lat;
-        }, {passive: false});
-
-        window.addEventListener('touchmove', (e) => {
-            if (!gameActive) return;
-            const dx = e.touches[0].clientX - startX;
-            const dy = startY - e.touches[0].clientY;
-            lon = startLon - dx * sensitivity; 
-            lat = startLat + dy * sensitivity;
-            lat = Math.max(-85, Math.min(85, lat));
-        }, {passive: false});
-
-        document.getElementById('shoot-btn').addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            e.stopPropagation(); 
-            if (!gameActive) return;
-            
-            playSound(120, 'sawtooth', 0.1, 0.1); 
-            const raycaster = new THREE.Raycaster();
-            raycaster.setFromCamera({ x: 0, y: 0 }, camera);
-            const intersects = raycaster.intersectObjects(targets);
-            if (intersects.length > 0) {
-                const hit = intersects[0].object;
-                scene.remove(hit);
-                targets.splice(targets.indexOf(hit), 1);
-                score++;
-                document.getElementById('score-val').innerText = score;
-                playSound(1200, 'sine', 0.05, 0.2);
-            }
-        });
-
-        function animate() {
-            requestAnimationFrame(animate);
-            const phi = THREE.MathUtils.degToRad(90 - lat);
-            const theta = THREE.MathUtils.degToRad(lon);
-            const targetPos = new THREE.Vector3().setFromSphericalCoords(100, phi, theta);
-            camera.lookAt(targetPos);
-            renderer.render(scene, camera);
-        }
-        animate();
-
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
-    </script>
+</script>
 </body>
 </html>
