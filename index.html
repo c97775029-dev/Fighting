@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Aim Trainer</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #111; font-family: sans-serif; }
+        #ui { position: absolute; top: 20px; left: 20px; color: white; font-size: 24px; pointer-events: none; }
+        #crosshair { 
+            position: absolute; top: 50%; left: 50%; 
+            width: 20px; height: 20px; 
+            border: 2px solid #0f0; border-radius: 50%;
+            transform: translate(-50%, -50%); pointer-events: none;
+        }
+        #instructions {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            color: white; text-align: center; background: rgba(0,0,0,0.8);
+            padding: 20px; border-radius: 10px; cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ui">Score: <span id="score">0</span></div>
+    <div id="crosshair"></div>
+    <div id="instructions"><h1>CLICK TO START</h1><p>Move mouse to aim, Click to shoot</p></div>
+
+    <script type="module">
+        import * as THREE from 'https://cdn.skypack.dev/three@0.136.0';
+        import { PointerLockControls } from 'https://cdn.skypack.dev/three@0.136.0/examples/jsm/controls/PointerLockControls.js';
+
+        let score = 0;
+        const targets = [];
+
+        // 1. Setup Scene
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x222222);
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // 2. Lighting
+        const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1);
+        scene.add(light);
+
+        // 3. Controls
+        const controls = new PointerLockControls(camera, document.body);
+        const instructions = document.getElementById('instructions');
+        
+        instructions.addEventListener('click', () => controls.lock());
+        controls.addEventListener('lock', () => instructions.style.display = 'none');
+        controls.addEventListener('unlock', () => instructions.style.display = 'block');
+
+        // 4. Target Logic
+        const geometry = new THREE.SphereGeometry(0.5, 32, 32);
+        const material = new THREE.MeshPhongMaterial({ color: 0xff4444 });
+
+        function spawnTarget() {
+            const target = new THREE.Mesh(geometry, material);
+            target.position.set(
+                (Math.random() - 0.5) * 20,
+                (Math.random() - 0.5) * 10 + 2,
+                -10 - Math.random() * 10
+            );
+            scene.add(target);
+            targets.push(target);
+            
+            // Auto-remove target after 2 seconds
+            setTimeout(() => {
+                scene.remove(target);
+                const index = targets.indexOf(target);
+                if (index > -1) targets.splice(index, 1);
+            }, 2000);
+        }
+
+        setInterval(spawnTarget, 1000);
+
+        // 5. Shooting Logic
+        const raycaster = new THREE.Raycaster();
+        window.addEventListener('mousedown', () => {
+            if (!controls.isLocked) return;
+
+            raycaster.setFromCamera({ x: 0, y: 0 }, camera);
+            const intersects = raycaster.intersectObjects(targets);
+
+            if (intersects.length > 0) {
+                const hit = intersects[0].object;
+                scene.remove(hit);
+                targets.splice(targets.indexOf(hit), 1);
+                score++;
+                document.getElementById('score').innerText = score;
+            }
+        });
+
+        // 6. Animation Loop
+        function animate() {
+            requestAnimationFrame(animate);
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // Handle Resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
