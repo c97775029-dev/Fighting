@@ -1,525 +1,149 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
-
-<title>Aim Trainer Pro – Juiced Final Build</title>
-
-<style>
-/* ============================================================
-                        GLOBAL
-============================================================ */
-:root {
-    --neon: #00ffcc;
-    --hit:  #ff3366;
-}
-
-body {
-    margin: 0;
-    overflow: hidden;
-    background: #000;
-    font-family: "Segoe UI", sans-serif;
-    touch-action: none;
-    color: white;
-}
-
-/* ============================================================
-                        UI SCREENS
-============================================================ */
-.screen {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    background: rgba(0,0,0,.85);
-    z-index: 20;
-    backdrop-filter: blur(5px);
-}
-
-.hidden { display: none !important; }
-
-/* HUD */
-#hud {
-    position: absolute;
-    top: 20px;
-    left: 20px;
-    pointer-events: none;
-    z-index: 10;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.stat {
-    background: rgba(0,255,204,.1);
-    border-left: 4px solid var(--neon);
-    padding: 8px 15px;
-    font-weight: bold;
-    font-size: 1.1rem;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-}
-
-/* Crosshair */
-#crosshair-container {
-    position: absolute;
-    inset: 50%;
-    transform: translate(-50%, -50%);
-    width: 40px;
-    height: 40px;
-    pointer-events: none;
-    z-index: 5;
-}
-
-#crosshair {
-    width: 100%;
-    height: 100%;
-    border: 2px solid var(--neon);
-    border-radius: 50%;
-    opacity: 0.5;
-    transition: transform 0.15s;
-}
-
-#hit-marker {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    color: var(--hit);
-    font-weight: bold;
-    font-size: 24px;
-    opacity: 0;
-}
-
-/* hit animation */
-.hit #crosshair {
-    border-color: var(--hit);
-    transform: scale(1.2);
-    opacity: 1;
-}
-
-.hit #hit-marker {
-    opacity: 1;
-}
-
-/* FIRE BUTTON */
-#shoot-btn {
-    position: absolute;
-    bottom: 40px;
-    right: 40px;
-    width: 100px;
-    height: 100px;
-    border-radius: 50%;
-    border: 3px solid var(--neon);
-    background: rgba(0,255,204,.1);
-    color: var(--neon);
-    font-weight: bold;
-    font-size: 1.2rem;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    box-shadow: 0 0 20px rgba(0,255,204,0.2);
-    z-index: 30;
-}
-
-#shoot-btn:active {
-    transform: scale(0.95);
-    background: rgba(0,255,204,0.3);
-}
-
-/* Combo UI */
-#combo-ui {
-    position: absolute;
-    top: 20px;
-    right: 20px;
-    color: var(--hit);
-    font-size: 2rem;
-    font-weight: 900;
-    pointer-events: none;
-}
-</style>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+    <title>Aim Pro</title>
+    <style>
+        :root { --n: #0fcc; --h: #f36; }
+        body { margin: 0; overflow: hidden; background: #000; font-family: sans-serif; touch-action: none; color: #fff; }
+        .screen { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; background: rgba(0,0,0,.8); z-index: 20; backdrop-filter: blur(5px); }
+        .hidden { display: none !important; }
+        #hud { position: absolute; top: 20px; left: 20px; z-index: 10; pointer-events: none; }
+        .stat { background: rgba(0,204,204,.1); border-left: 4px solid var(--n); padding: 8px; margin-bottom: 5px; font-weight: bold; }
+        #cross-cont { position: absolute; inset: 50%; width: 40px; height: 40px; transform: translate(-50%,-50%); pointer-events: none; z-index: 5; }
+        #cross { width: 100%; height: 100%; border: 2px solid var(--n); border-radius: 50%; opacity: .5; transition: .1s; }
+        #hit-m { position: absolute; inset: 0; display: flex; justify-content: center; align-items: center; color: var(--h); font-weight: bold; opacity: 0; }
+        .hit #cross { border-color: var(--h); transform: scale(1.2); opacity: 1; }
+        .hit #hit-m { opacity: 1; }
+        #shoot { position: absolute; bottom: 40px; right: 40px; width: 100px; height: 100px; border-radius: 50%; border: 3px solid var(--n); background: rgba(0,204,204,.1); color: var(--n); font-weight: bold; z-index: 30; display: flex; justify-content: center; align-items: center; }
+        button { padding: 15px 50px; background: var(--n); border: none; border-radius: 30px; font-weight: bold; font-size: 1.2rem; cursor: pointer; }
+    </style>
 </head>
-
-
 <body>
 
+<div id="hud" class="hidden"><div class="stat">SCORE: <span id="s-val">0</span></div><div class="stat">TIME: <span id="t-val">60</span></div></div>
+<div id="combo" style="position:absolute; top:20px; right:20px; color:var(--h); font-size:2rem; font-weight:900;"></div>
+<div id="cross-cont" class="hidden"><div id="cross"></div><div id="hit-m">×</div></div>
+<div id="shoot" class="hidden">FIRE</div>
 
-<!-- HUD -->
-<div id="hud" class="hidden">
-    <div class="stat">SCORE: <span id="score-val">0</span></div>
-    <div class="stat">TIME: <span id="timer-val">60</span></div>
-</div>
-
-<div id="combo-ui"></div>
-
-<div id="crosshair-container" class="hidden">
-    <div id="crosshair"></div>
-    <div id="hit-marker">×</div>
-</div>
-
-<div id="shoot-btn" class="hidden">FIRE</div>
-
-
-<!-- MENU -->
 <div id="menu" class="screen">
-    <h1 id="title" style="color:var(--neon); font-size: 3rem; text-shadow:0 0 20px var(--neon);">
-        AIM PRO
-    </h1>
-
-    <div style="margin:10px; font-size:1.2rem; color:#ffcc00">
-        BEST: <span id="best-val">0</span>
+    <h1 id="title" style="color:var(--n); text-shadow:0 0 10px var(--n)">AIM PRO</h1>
+    <p>BEST: <span id="b-val">0</span></p>
+    <div style="width:250px; text-align:center; margin:20px;">
+        Sens: <span id="sens-l">0.15</span><br>
+        <input id="sens-s" type="range" min="0.05" max="0.5" value="0.15" step="0.01" style="width:100%">
     </div>
-
-    <div style="width:280px; margin:30px 0; text-align:center;">
-        Sensitivity: <span id="sens-label">0.15</span>
-        <input id="sens-slider" type="range"
-               min="0.05" max="0.5" value="0.15" step="0.01"
-               style="width:100%; margin-top:10px;">
-    </div>
-
-    <button id="play-btn"
-        style="padding:15px 50px; background:var(--neon); color:#000;
-               border:none; border-radius:30px; font-size:1.3rem; font-weight:bold;">
-        START
-    </button>
+    <button id="play">START</button>
 </div>
 
-
-<!-- COUNTDOWN -->
-<div id="count-screen" class="screen hidden">
-    <span id="cd-text"
-          style="font-size:10rem; color:var(--neon); font-weight:bold;">
-        3
-    </span>
-</div>
-
-
+<div id="count" class="screen hidden"><h1 id="cd-t" style="font-size:8rem; color:var(--n)">3</h1></div>
 
 <script type="module">
 import * as THREE from "https://cdn.skypack.dev/three@0.136.0";
 
+const $ = id => document.getElementById(id);
+let sens=0.15, score=0, time=60, combo=0, lastH=0, run=false, pool=[], tInt, sInt;
 
-/* ============================================================
-                     GAME VALUES
-============================================================ */
-let sensitivity = 0.15;
-let score = 0;
-let time = 60;
-let combo = 0;
-let lastHit = 0;
-let running = false;
-
-
-/* ============================================================
-                     STORAGE
-============================================================ */
-let best = localStorage.getItem("aimProBest") || 0;
-document.getElementById("best-val").textContent = best;
-
-
-/* ============================================================
-                        AUDIO
-============================================================ */
 const ctx = new (window.AudioContext||window.webkitAudioContext)();
+const tone = (f, t="sine", v=0.1, d=0.1) => {
+    const o=ctx.createOscillator(), g=ctx.createGain();
+    o.type=t; o.frequency.value=f; g.gain.value=v;
+    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime+d);
+    o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime+d);
+};
 
-function tone(freq, type="sine", vol=0.1, dur=0.1){
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.type = type;
-    o.frequency.value = freq;
-    g.gain.value = vol;
-    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur);
-    o.connect(g); g.connect(ctx.destination);
-    o.start(); o.stop(ctx.currentTime + dur);
-}
-
-
-/* ============================================================
-                      THREE CORE
-============================================================ */
 const scene = new THREE.Scene();
-const cam   = new THREE.PerspectiveCamera(
-                    75,
-                    innerWidth/innerHeight,
-                    0.1,
-                    1000);
-
-const renderer = new THREE.WebGLRenderer({
-    antialias:true,
-    powerPreference:"high-performance"
-});
-
+const cam = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer({ antialias:true });
 renderer.setSize(innerWidth, innerHeight);
 renderer.setPixelRatio(devicePixelRatio);
 document.body.appendChild(renderer.domElement);
 
+scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+const pL = new THREE.PointLight(0x00ffcc, 1); cam.add(pL); scene.add(cam);
 
-/* LIGHT & BG */
-scene.add(new THREE.AmbientLight(0xffffff, .4));
-cam.add(new THREE.PointLight(0x00ffcc, 1));
-scene.add(cam);
+// Starfield
+const sGeo = new THREE.BufferGeometry(), sPos = [];
+for(let i=0; i<3000; i++) sPos.push((Math.random()-0.5)*400, (Math.random()-0.5)*400, (Math.random()-0.5)*400);
+sGeo.setAttribute("position", new THREE.Float32BufferAttribute(sPos, 3));
+scene.add(new THREE.Points(sGeo, new THREE.PointsMaterial({color:0x888888, size:0.6})));
 
-
-/* starfield bg */
-const stars = new THREE.Points(
-    new THREE.BufferGeometry(),
-    new THREE.PointsMaterial({color:0x888888,size:.6})
-);
-
-let sData=[];
-for(let i=0;i<4000;i++){
-    sData.push(
-        (Math.random()-0.5)*400,
-        (Math.random()-0.5)*400,
-        (Math.random()-0.5)*400
-    );
+// Targets
+for(let i=0; i<10; i++) {
+    const t = new THREE.Mesh(new THREE.IcosahedronGeometry(0.7,0), new THREE.MeshPhongMaterial({color:0x00ffcc, emissive:0x002211, flatShading:true}));
+    t.visible = false; t.userData = { active: false };
+    scene.add(t); pool.push(t);
 }
 
-stars.geometry.setAttribute(
-    "position",
-    new THREE.Float32BufferAttribute(sData,3)
-);
-
-scene.add(stars);
-
-
-/* ============================================================
-                     TARGET POOL
-============================================================ */
-const pool=[];
-const maxTargets = 10;
-const tGeo = new THREE.IcosahedronGeometry(.7, 0);
-
-for(let i=0;i<maxTargets;i++){
-    const mat = new THREE.MeshPhongMaterial({
-        color:0x00ffcc,
-        emissive:0x002211,
-        flatShading:true
-    });
-
-    const t=new THREE.Mesh(tGeo,mat);
-    t.visible=false;
-    t.userData.active=false;
-    scene.add(t);
-    pool.push(t);
-}
-
-
-/* spawn */
-function spawn(){
-    if(!running) return;
-
-    const t = pool.find(x=>!x.userData.active);
+const spawn = () => {
+    if(!run) return;
+    const t = pool.find(x => !x.userData.active);
     if(!t) return;
+    const a = (Math.random()-0.5)*Math.PI*1.5, d = 12 + Math.random()*8;
+    t.position.set(Math.sin(a)*d, (Math.random()-0.5)*8, -Math.cos(a)*d);
+    t.scale.set(0.01, 0.01, 0.01); t.visible = true; t.userData.active = true; t.userData.age = performance.now();
+};
 
-    const angle=(Math.random()-.5)*Math.PI*1.5;
-    const dist = 12 + Math.random()*8;
-
-    t.position.set(
-        Math.sin(angle)*dist,
-        (Math.random()-.5)*8,
-        -Math.cos(angle)*dist
-    );
-
-    t.scale.set(.01,.01,.01);
-    t.visible=true;
-    t.userData.active=true;
-    t.userData.age=performance.now();
-}
-
-
-/* ============================================================
-                    CAMERA / INPUT
-============================================================ */
-let lon=0, lat=0;
-let sx, sy, slon, slat;
-
-addEventListener("touchstart", e=>{
-    sx=e.touches[0].clientX;
-    sy=e.touches[0].clientY;
-    slon=lon;
-    slat=lat;
+let lon=0, lat=0, sx, sy, slon, slat;
+addEventListener("touchstart", e => { sx=e.touches[0].clientX; sy=e.touches[0].clientY; slon=lon; slat=lat; });
+addEventListener("touchmove", e => {
+    if(!run) return;
+    lon = slon - (e.touches[0].clientX - sx)*sens;
+    lat = Math.max(-85, Math.min(85, slat + (sy - e.touches[0].clientY)*sens));
 });
 
-addEventListener("touchmove", e=>{
-    if(!running) return;
-    lon    = slon - (e.touches[0].clientX - sx)*sensitivity;
-    lat    = slat + (sy - e.touches[0].clientY)*sensitivity;
-    lat    = Math.max(-85, Math.min(85, lat));
-});
-
-
-/* ============================================================
-                        SHOOT
-============================================================ */
-const cross=document.getElementById("crosshair-container");
 const ray = new THREE.Raycaster();
-
-document.getElementById("shoot-btn").addEventListener("touchstart", e=>{
-    e.preventDefault();
-    if(!running) return;
-
-    tone(140,"sawtooth",.05,.1);
-
-    ray.setFromCamera({x:0,y:0},cam);
-
-    const list=pool.filter(o=>o.userData.active);
-    const hit = ray.intersectObjects(list)[0];
-
-    if(hit){
-        hit.object.userData.active=false;
-
-        /* combo */
-        let n=performance.now();
-        combo = (n-lastHit<1000? combo+1: 1);
-        lastHit=n;
-
-        score+=combo;
-        document.getElementById("score-val").textContent=score;
-
-        if(combo>1){
-            let ui=document.getElementById("combo-ui");
-            ui.textContent=combo+"x";
-            setTimeout(()=>{
-                if(performance.now()-lastHit>700)
-                    ui.textContent="";
-            },700);
-        }
-
-        cross.classList.add("hit");
-        setTimeout(()=>cross.classList.remove("hit"),150);
-
-        tone(600+combo*80,"sine",.15,.1);
+$("shoot").ontouchstart = e => {
+    e.preventDefault(); if(!run) return;
+    tone(140, "sawtooth", 0.05, 0.1);
+    ray.setFromCamera({x:0, y:0}, cam);
+    const hit = ray.intersectObjects(pool.filter(o => o.userData.active))[0];
+    if(hit) {
+        hit.object.userData.active = false;
+        let n = performance.now();
+        combo = (n-lastH < 1000 ? combo+1 : 1); lastH = n;
+        score += combo; $("s-val").textContent = score;
+        $("combo").textContent = combo > 1 ? combo+"x" : "";
+        $("cross-cont").classList.add("hit"); setTimeout(() => $("cross-cont").classList.remove("hit"), 150);
+        tone(600+combo*80, "sine", 0.15, 0.1);
     }
-});
-
-
-/* ============================================================
-                    GAME FLOW
-============================================================ */
-function start(){
-    running=true;
-    score=0;
-    time=60;
-    combo=0;
-
-    document.getElementById("score-val").textContent=0;
-
-    document.getElementById("menu").classList.add("hidden");
-    document.getElementById("hud").classList.remove("hidden");
-    document.getElementById("shoot-btn").classList.remove("hidden");
-    cross.classList.remove("hidden");
-
-    /* timers */
-    let t=setInterval(()=>{
-        if(!running){clearInterval(t);return;}
-        time--;
-        document.getElementById("timer-val").textContent=time;
-        if(time<=0) end();
-    },1000);
-
-    let sp=setInterval(()=>{
-        if(!running){clearInterval(sp);return;}
-        spawn();
-    },550);
-}
-
-
-function end(){
-    running=false;
-
-    if(score>best){
-        best=score;
-        localStorage.setItem("aimProBest",best);
-    }
-
-    document.getElementById("best-val").textContent=best;
-
-    document.getElementById("hud").classList.add("hidden");
-    document.getElementById("shoot-btn").classList.add("hidden");
-    document.getElementById("menu").classList.remove("hidden");
-    document.getElementById("title").textContent="PLAY AGAIN";
-    cross.classList.add("hidden");
-}
-
-
-/* ============================================================
-                    COUNTDOWN
-============================================================ */
-document.getElementById("play-btn").onclick=()=>{
-    ctx.resume();
-
-    document.getElementById("menu").classList.add("hidden");
-    const cs=document.getElementById("count-screen");
-    cs.classList.remove("hidden");
-
-    let c=3;
-    document.getElementById("cd-text").textContent=c;
-
-    let i=setInterval(()=>{
-        c--;
-        tone(300,"sine",.05,.1);
-        document.getElementById("cd-text").textContent=c;
-
-        if(c<=0){
-            clearInterval(i);
-            cs.classList.add("hidden");
-            start();
-        }
-    },1000);
 };
 
-
-/* sensitivity setting */
-document.getElementById("sens-slider").oninput=e=>{
-    sensitivity=parseFloat(e.target.value);
-    document.getElementById("sens-label").textContent=sensitivity.toFixed(2);
+const begin = () => {
+    run = true; score = 0; time = 60; combo = 0;
+    $("s-val").textContent = 0; $("b-val").textContent = localStorage.getItem("aimProBest") || 0;
+    $("menu").classList.add("hidden"); $("hud").classList.remove("hidden"); $("shoot").classList.remove("hidden"); $("cross-cont").classList.remove("hidden");
+    pool.forEach(o => o.userData.active = false); // Clean reset
+    tInt = setInterval(() => { time--; $("t-val").textContent = time; if(time <= 0) stop(); }, 1000);
+    sInt = setInterval(spawn, 550);
 };
 
+const stop = () => {
+    run = false; clearInterval(tInt); clearInterval(sInt);
+    if(score > (localStorage.getItem("aimProBest")||0)) localStorage.setItem("aimProBest", score);
+    ["hud", "shoot", "cross-cont"].forEach(id => $(id).classList.add("hidden"));
+    $("menu").classList.remove("hidden"); $("title").textContent = "PLAY AGAIN";
+};
 
-/* ============================================================
-                   RENDER LOOP
-============================================================ */
-function loop(){
+$("play").onclick = () => {
+    ctx.resume(); $("menu").classList.add("hidden"); $("count").classList.remove("hidden");
+    let c = 3; $("cd-t").textContent = c;
+    let i = setInterval(() => { c--; tone(300); $("cd-t").textContent = c; if(c <= 0) { clearInterval(i); $("count").classList.add("hidden"); begin(); } }, 1000);
+};
+
+$("sens-s").oninput = e => { sens = parseFloat(e.target.value); $("sens-l").textContent = sens.toFixed(2); };
+
+(function loop(){
     requestAnimationFrame(loop);
-
-    /* aim cam */
-    let phi   = THREE.MathUtils.degToRad(90-lat);
-    let theta = THREE.MathUtils.degToRad(lon);
-    cam.lookAt(
-        new THREE.Vector3().setFromSphericalCoords(100,phi,theta)
-    );
-
-    /* target animation */
-    let t=performance.now();
-    pool.forEach(o=>{
-        if(o.userData.active){
-            o.scale.lerp(new THREE.Vector3(1,1,1),.08);
-            o.rotation.y+=.03;
-            if(t-o.userData.age>2600) o.userData.active=false;
-        }else{
-            o.scale.lerp(new THREE.Vector3(.01,.01,.01),.15);
-            if(o.scale.x<.05) o.visible=false;
-        }
+    cam.lookAt(new THREE.Vector3().setFromSphericalCoords(100, THREE.MathUtils.degToRad(90-lat), THREE.MathUtils.degToRad(lon)));
+    pool.forEach(o => {
+        if(o.userData.active) { o.scale.lerp(new THREE.Vector3(1,1,1), 0.1); o.rotation.y += 0.03; if(performance.now()-o.userData.age > 2600) o.userData.active = false; }
+        else { o.scale.lerp(new THREE.Vector3(0.01,0.01,0.01), 0.2); if(o.scale.x < 0.05) o.visible = false; }
     });
+    renderer.render(scene, cam);
+})();
 
-    renderer.render(scene,cam);
-}
-
-loop();
-
-
-/* resize support */
-addEventListener("resize",()=>{
-    cam.aspect=innerWidth/innerHeight;
-    cam.updateProjectionMatrix();
-    renderer.setSize(innerWidth, innerHeight);
-});
+addEventListener("resize", () => { cam.aspect = innerWidth/innerHeight; cam.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
 </script>
-
 </body>
 </html>
