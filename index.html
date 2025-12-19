@@ -2,174 +2,157 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Aim Trainer + Sound</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>3D Mobile Aim Trainer</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #111; font-family: 'Segoe UI', sans-serif; }
-        #ui { position: absolute; top: 20px; left: 20px; color: white; font-size: 24px; pointer-events: none; z-index: 10; }
-        #crosshair { 
-            position: absolute; top: 50%; left: 50%; 
-            width: 10px; height: 10px; border: 2px solid #0f0; border-radius: 50%;
-            transform: translate(-50%, -50%); pointer-events: none;
-        }
+        body { margin: 0; overflow: hidden; background: #111; font-family: sans-serif; touch-action: none; }
+        #ui { position: absolute; top: 10px; left: 10px; color: white; font-size: 20px; pointer-events: none; z-index: 10; }
         #overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
-            background: rgba(0,0,0,0.8); color: white; z-index: 20; cursor: pointer;
+            background: rgba(0,0,0,0.8); color: white; z-index: 20;
         }
-        #countdown { font-size: 100px; color: #00ffcc; display: none; font-weight: bold; }
-        h1 { margin-bottom: 10px; text-shadow: 0 0 10px #00ffcc; }
+        #countdown { font-size: 80px; color: #00ffcc; display: none; }
     </style>
 </head>
 <body>
 
     <div id="ui">Score: <span id="score">0</span></div>
-    <div id="crosshair"></div>
     
-    <div id="overlay">
-        <h1 id="msg">READY? CLICK TO START</h1>
+    <div id="overlay" id="startBtn">
+        <h1 id="msg">TAP TO START</h1>
         <div id="countdown">3</div>
     </div>
 
     <script type="module">
         import * as THREE from 'https://cdn.skypack.dev/three@0.136.0';
-        import { PointerLockControls } from 'https://cdn.skypack.dev/three@0.136.0/examples/jsm/controls/PointerLockControls.js';
 
         let score = 0;
         let gameActive = false;
         const targets = [];
+        
+        // Touch rotation variables
+        let lon = 0, lat = 0;
+        let phi = 0, theta = 0;
+        let onPointerDownPointerX = 0, onPointerDownPointerY = 0;
+        let onPointerDownLon = 0, onPointerDownLat = 0;
+
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
-        // 1. SOUND ENGINE (Synthesized Beeps)
         function playSound(freq, type, duration) {
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             osc.type = type;
             osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+            gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
             osc.connect(gain);
             gain.connect(audioCtx.destination);
             osc.start();
             osc.stop(audioCtx.currentTime + duration);
         }
 
-        // 2. SCENE SETUP
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x050505);
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        const light = new THREE.PointLight(0x00ffcc, 2, 50);
-        light.position.set(0, 5, 5);
-        scene.add(light);
-        scene.add(new THREE.AmbientLight(0x404040));
+        scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 1.5));
 
-        const controls = new PointerLockControls(camera, document.body);
+        // Start Game Event
         const overlay = document.getElementById('overlay');
-        const msg = document.getElementById('msg');
-        const countDisplay = document.getElementById('countdown');
-
-        // 3. GAME STATE LOGIC
         overlay.addEventListener('click', () => {
+            if (gameActive) return;
             if (audioCtx.state === 'suspended') audioCtx.resume();
-            controls.lock();
-        });
-
-        controls.addEventListener('lock', () => {
-            msg.style.display = 'none';
+            document.getElementById('msg').style.display = 'none';
             startCountdown();
-        });
-
-        controls.addEventListener('unlock', () => {
-            overlay.style.display = 'flex';
-            msg.style.display = 'block';
-            msg.innerText = "PAUSED - CLICK TO RESUME";
-            countDisplay.style.display = 'none';
-            gameActive = false;
         });
 
         function startCountdown() {
             let count = 3;
-            countDisplay.style.display = 'block';
-            countDisplay.innerText = count;
-            playSound(440, 'sine', 0.1); // Countdown beep
+            const cd = document.getElementById('countdown');
+            cd.style.display = 'block';
+            cd.innerText = count;
             
-            const interval = setInterval(() => {
+            const timer = setInterval(() => {
                 count--;
                 if (count > 0) {
-                    countDisplay.innerText = count;
+                    cd.innerText = count;
                     playSound(440, 'sine', 0.1);
                 } else {
-                    clearInterval(interval);
-                    countDisplay.style.display = 'none';
+                    clearInterval(timer);
                     overlay.style.display = 'none';
                     gameActive = true;
-                    playSound(880, 'sine', 0.3); // "GO" beep
                     spawnLoop();
                 }
             }, 1000);
         }
 
         function spawnLoop() {
-            if (gameActive) {
-                spawnTarget();
-                setTimeout(spawnLoop, 1000);
-            }
-        }
-
-        const geometry = new THREE.IcosahedronGeometry(0.6, 0); // Geometric target look
-        const material = new THREE.MeshPhongMaterial({ color: 0x00ffcc, wireframe: true });
-
-        function spawnTarget() {
             if (!gameActive) return;
-            const target = new THREE.Mesh(geometry, material);
-            target.position.set((Math.random()-0.5)*18, (Math.random()-0.5)*10 + 2, -15);
+            const geo = new THREE.SphereGeometry(0.7, 16, 16);
+            const mat = new THREE.MeshBasicMaterial({ color: 0x00ffcc, wireframe: true });
+            const target = new THREE.Mesh(geo, mat);
+            
+            target.position.set((Math.random()-0.5)*20, (Math.random()-0.5)*15, -15);
             scene.add(target);
             targets.push(target);
-            playSound(200, 'square', 0.05); // Spawn sound
-
+            
             setTimeout(() => {
                 scene.remove(target);
-                const idx = targets.indexOf(target);
-                if (idx > -1) targets.splice(idx, 1);
-            }, 1800);
+                targets.splice(targets.indexOf(target), 1);
+            }, 2000);
+            setTimeout(spawnLoop, 1200);
         }
 
-        // 4. SHOOTING LOGIC
-        const raycaster = new THREE.Raycaster();
-        window.addEventListener('mousedown', () => {
-            if (!gameActive || !controls.isLocked) return;
+        // MOBILE CONTROLS: Drag to Look
+        document.addEventListener('pointerdown', (e) => {
+            onPointerDownPointerX = e.clientX;
+            onPointerDownPointerY = e.clientY;
+            onPointerDownLon = lon;
+            onPointerDownLat = lat;
 
-            raycaster.setFromCamera({ x: 0, y: 0 }, camera);
-            const intersects = raycaster.intersectObjects(targets);
-
-            if (intersects.length > 0) {
-                const hit = intersects[0].object;
-                scene.remove(hit);
-                targets.splice(targets.indexOf(hit), 1);
-                score++;
-                document.getElementById('score').innerText = score;
-                playSound(1200, 'triangle', 0.1); // HIT SOUND
-            } else {
-                playSound(150, 'sawtooth', 0.05); // MISS SOUND
+            // Shooting Logic on Tap
+            if(gameActive) {
+                const mouse = new THREE.Vector2();
+                mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+                
+                const raycaster = new THREE.Raycaster();
+                raycaster.setFromCamera(mouse, camera);
+                const intersects = raycaster.intersectObjects(targets);
+                
+                if (intersects.length > 0) {
+                    scene.remove(intersects[0].object);
+                    targets.splice(targets.indexOf(intersects[0].object), 1);
+                    score++;
+                    document.getElementById('score').innerText = score;
+                    playSound(800, 'triangle', 0.1);
+                }
             }
+        });
+
+        document.addEventListener('pointermove', (e) => {
+            if (e.isPrimary === false) return;
+            lon = (onPointerDownPointerX - e.clientX) * 0.1 + onPointerDownLon;
+            lat = (e.clientY - onPointerDownPointerY) * 0.1 + onPointerDownLat;
         });
 
         function animate() {
             requestAnimationFrame(animate);
-            targets.forEach(t => t.rotation.y += 0.05); // Make targets spin
+            lat = Math.max(-85, Math.min(85, lat));
+            phi = THREE.MathUtils.degToRad(90 - lat);
+            theta = THREE.MathUtils.degToRad(lon);
+
+            camera.target = new THREE.Vector3(
+                500 * Math.sin(phi) * Math.cos(theta),
+                500 * Math.cos(phi),
+                500 * Math.sin(phi) * Math.sin(theta)
+            );
+            camera.lookAt(camera.target);
             renderer.render(scene, camera);
         }
         animate();
-
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
     </script>
 </body>
 </html>
