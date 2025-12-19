@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Aim Trainer</title>
+    <title>3D Aim Trainer + Sound</title>
     <style>
         body { margin: 0; overflow: hidden; background: #111; font-family: 'Segoe UI', sans-serif; }
         #ui { position: absolute; top: 20px; left: 20px; color: white; font-size: 24px; pointer-events: none; z-index: 10; }
@@ -15,9 +15,10 @@
         #overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
-            background: rgba(0,0,0,0.7); color: white; z-index: 20; cursor: pointer;
+            background: rgba(0,0,0,0.8); color: white; z-index: 20; cursor: pointer;
         }
-        #countdown { font-size: 80px; color: #ffcc00; display: none; }
+        #countdown { font-size: 100px; color: #00ffcc; display: none; font-weight: bold; }
+        h1 { margin-bottom: 10px; text-shadow: 0 0 10px #00ffcc; }
     </style>
 </head>
 <body>
@@ -26,7 +27,7 @@
     <div id="crosshair"></div>
     
     <div id="overlay">
-        <h1 id="msg">CLICK TO START</h1>
+        <h1 id="msg">READY? CLICK TO START</h1>
         <div id="countdown">3</div>
     </div>
 
@@ -37,24 +38,43 @@
         let score = 0;
         let gameActive = false;
         const targets = [];
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
+        // 1. SOUND ENGINE (Synthesized Beeps)
+        function playSound(freq, type, duration) {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        }
+
+        // 2. SCENE SETUP
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x111122);
+        scene.background = new THREE.Color(0x050505);
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1.5);
+        const light = new THREE.PointLight(0x00ffcc, 2, 50);
+        light.position.set(0, 5, 5);
         scene.add(light);
+        scene.add(new THREE.AmbientLight(0x404040));
 
         const controls = new PointerLockControls(camera, document.body);
         const overlay = document.getElementById('overlay');
         const msg = document.getElementById('msg');
         const countDisplay = document.getElementById('countdown');
 
-        // Start Process
+        // 3. GAME STATE LOGIC
         overlay.addEventListener('click', () => {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
             controls.lock();
         });
 
@@ -75,16 +95,19 @@
             let count = 3;
             countDisplay.style.display = 'block';
             countDisplay.innerText = count;
+            playSound(440, 'sine', 0.1); // Countdown beep
             
             const interval = setInterval(() => {
                 count--;
                 if (count > 0) {
                     countDisplay.innerText = count;
+                    playSound(440, 'sine', 0.1);
                 } else {
                     clearInterval(interval);
                     countDisplay.style.display = 'none';
-                    overlay.style.display = 'none'; // Completely hide overlay
+                    overlay.style.display = 'none';
                     gameActive = true;
+                    playSound(880, 'sine', 0.3); // "GO" beep
                     spawnLoop();
                 }
             }, 1000);
@@ -97,21 +120,25 @@
             }
         }
 
-        const geometry = new THREE.SphereGeometry(0.5, 32, 32);
-        const material = new THREE.MeshPhongMaterial({ color: 0xff4444, emissive: 0x330000 });
+        const geometry = new THREE.IcosahedronGeometry(0.6, 0); // Geometric target look
+        const material = new THREE.MeshPhongMaterial({ color: 0x00ffcc, wireframe: true });
 
         function spawnTarget() {
             if (!gameActive) return;
             const target = new THREE.Mesh(geometry, material);
-            target.position.set((Math.random()-0.5)*15, (Math.random()-0.5)*10 + 2, -12);
+            target.position.set((Math.random()-0.5)*18, (Math.random()-0.5)*10 + 2, -15);
             scene.add(target);
             targets.push(target);
+            playSound(200, 'square', 0.05); // Spawn sound
+
             setTimeout(() => {
                 scene.remove(target);
-                targets.splice(targets.indexOf(target), 1);
-            }, 1500);
+                const idx = targets.indexOf(target);
+                if (idx > -1) targets.splice(idx, 1);
+            }, 1800);
         }
 
+        // 4. SHOOTING LOGIC
         const raycaster = new THREE.Raycaster();
         window.addEventListener('mousedown', () => {
             if (!gameActive || !controls.isLocked) return;
@@ -125,11 +152,15 @@
                 targets.splice(targets.indexOf(hit), 1);
                 score++;
                 document.getElementById('score').innerText = score;
+                playSound(1200, 'triangle', 0.1); // HIT SOUND
+            } else {
+                playSound(150, 'sawtooth', 0.05); // MISS SOUND
             }
         });
 
         function animate() {
             requestAnimationFrame(animate);
+            targets.forEach(t => t.rotation.y += 0.05); // Make targets spin
             renderer.render(scene, camera);
         }
         animate();
