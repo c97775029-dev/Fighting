@@ -3,24 +3,51 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>3D Mobile Aim Trainer</title>
+    <title>3D FPS Aim Trainer</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #111; font-family: sans-serif; touch-action: none; }
-        #ui { position: absolute; top: 10px; left: 10px; color: white; font-size: 20px; pointer-events: none; z-index: 10; }
+        body { margin: 0; overflow: hidden; background: #000; font-family: sans-serif; touch-action: none; }
+        
+        /* UI Elements */
+        #ui { position: absolute; top: 20px; left: 20px; color: #00ffcc; font-size: 24px; pointer-events: none; z-index: 10; font-weight: bold; }
+        
+        #crosshair { 
+            position: absolute; top: 50%; left: 50%; 
+            width: 14px; height: 14px; border: 2px solid #00ffcc; border-radius: 50%;
+            transform: translate(-50%, -50%); pointer-events: none; z-index: 5;
+        }
+        #crosshair::after {
+            content: ''; position: absolute; top: 50%; left: 50%;
+            width: 2px; height: 2px; background: #00ffcc; transform: translate(-50%, -50%);
+        }
+
+        /* Shoot Button for Mobile */
+        #shoot-btn {
+            position: absolute; bottom: 40px; right: 40px;
+            width: 80px; height: 80px; background: rgba(255, 255, 255, 0.2);
+            border: 4px solid #00ffcc; border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            color: white; font-weight: bold; z-index: 30;
+            user-select: none; -webkit-tap-highlight-color: transparent;
+        }
+
         #overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
-            background: rgba(0,0,0,0.8); color: white; z-index: 20;
+            background: rgba(0,0,0,0.9); color: white; z-index: 40;
         }
         #countdown { font-size: 80px; color: #00ffcc; display: none; }
     </style>
 </head>
 <body>
 
-    <div id="ui">Score: <span id="score">0</span></div>
+    <div id="ui">SCORE: <span id="score">0</span></div>
+    <div id="crosshair"></div>
+    <div id="shoot-btn">FIRE</div>
     
-    <div id="overlay" id="startBtn">
-        <h1 id="msg">TAP TO START</h1>
+    <div id="overlay">
+        <h1 id="msg">FPS AIM TRAINER</h1>
+        <p>Drag to AIM | Tap Button to FIRE</p>
+        <button id="start-trigger" style="padding: 15px 30px; font-size: 20px; background: #00ffcc; border: none; border-radius: 5px;">START GAME</button>
         <div id="countdown">3</div>
     </div>
 
@@ -31,20 +58,20 @@
         let gameActive = false;
         const targets = [];
         
-        // Touch rotation variables
+        // Aiming Logic
         let lon = 0, lat = 0;
         let phi = 0, theta = 0;
-        let onPointerDownPointerX = 0, onPointerDownPointerY = 0;
-        let onPointerDownLon = 0, onPointerDownLat = 0;
+        let startX, startY, startLon, startLat;
 
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
-        function playSound(freq, type, duration) {
+        function playSound(freq, type, duration, vol=0.05) {
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             osc.type = type;
             osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-            gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
             osc.connect(gain);
             gain.connect(audioCtx.destination);
             osc.start();
@@ -52,19 +79,25 @@
         }
 
         const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0a0a0a);
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 1.5));
+        // Grid floor to help with 3D depth
+        const grid = new THREE.GridHelper(100, 50, 0x444444, 0x222222);
+        grid.position.y = -5;
+        scene.add(grid);
+        scene.add(new THREE.AmbientLight(0xffffff, 0.5));
 
-        // Start Game Event
-        const overlay = document.getElementById('overlay');
-        overlay.addEventListener('click', () => {
-            if (gameActive) return;
+        // Game Start Logic
+        const startTrigger = document.getElementById('start-trigger');
+        startTrigger.addEventListener('click', () => {
             if (audioCtx.state === 'suspended') audioCtx.resume();
+            startTrigger.style.display = 'none';
             document.getElementById('msg').style.display = 'none';
+            document.querySelector('#overlay p').style.display = 'none';
             startCountdown();
         });
 
@@ -73,7 +106,6 @@
             const cd = document.getElementById('countdown');
             cd.style.display = 'block';
             cd.innerText = count;
-            
             const timer = setInterval(() => {
                 count--;
                 if (count > 0) {
@@ -81,7 +113,7 @@
                     playSound(440, 'sine', 0.1);
                 } else {
                     clearInterval(timer);
-                    overlay.style.display = 'none';
+                    document.getElementById('overlay').style.display = 'none';
                     gameActive = true;
                     spawnLoop();
                 }
@@ -90,69 +122,84 @@
 
         function spawnLoop() {
             if (!gameActive) return;
-            const geo = new THREE.SphereGeometry(0.7, 16, 16);
+            const geo = new THREE.IcosahedronGeometry(0.8, 0);
             const mat = new THREE.MeshBasicMaterial({ color: 0x00ffcc, wireframe: true });
             const target = new THREE.Mesh(geo, mat);
             
-            target.position.set((Math.random()-0.5)*20, (Math.random()-0.5)*15, -15);
+            // Spawn in a semi-circle in front of the player
+            const angle = (Math.random() - 0.5) * Math.PI; // -90 to +90 degrees
+            const dist = 15 + Math.random() * 5;
+            target.position.set(Math.sin(angle) * dist, (Math.random() - 0.5) * 10, -Math.cos(angle) * dist);
+            
             scene.add(target);
             targets.push(target);
             
             setTimeout(() => {
                 scene.remove(target);
                 targets.splice(targets.indexOf(target), 1);
-            }, 2000);
-            setTimeout(spawnLoop, 1200);
+            }, 2500);
+            setTimeout(spawnLoop, 1000);
         }
 
-        // MOBILE CONTROLS: Drag to Look
-        document.addEventListener('pointerdown', (e) => {
-            onPointerDownPointerX = e.clientX;
-            onPointerDownPointerY = e.clientY;
-            onPointerDownLon = lon;
-            onPointerDownLat = lat;
+        // AIMING: Touch anywhere to look
+        document.addEventListener('touchstart', (e) => {
+            startX = e.touches[0].clientX;
+            startY = e.touches[0].clientY;
+            startLon = lon;
+            startLat = lat;
+        }, {passive: false});
 
-            // Shooting Logic on Tap
-            if(gameActive) {
-                const mouse = new THREE.Vector2();
-                mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-                mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-                
-                const raycaster = new THREE.Raycaster();
-                raycaster.setFromCamera(mouse, camera);
-                const intersects = raycaster.intersectObjects(targets);
-                
-                if (intersects.length > 0) {
-                    scene.remove(intersects[0].object);
-                    targets.splice(targets.indexOf(intersects[0].object), 1);
-                    score++;
-                    document.getElementById('score').innerText = score;
-                    playSound(800, 'triangle', 0.1);
-                }
+        document.addEventListener('touchmove', (e) => {
+            if (!gameActive) return;
+            const dx = startX - e.touches[0].clientX;
+            const dy = e.touches[0].clientY - startY;
+            lon = startLon + dx * 0.15; // Sensitivity
+            lat = startLat + dy * 0.15;
+            lat = Math.max(-85, Math.min(85, lat));
+        }, {passive: false});
+
+        // SHOOTING: Only when clicking the dedicated button
+        const shootBtn = document.getElementById('shoot-btn');
+        shootBtn.addEventListener('touchstart', (e) => {
+            e.stopPropagation(); // Don't trigger aim logic
+            if (!gameActive) return;
+
+            playSound(150, 'sawtooth', 0.1, 0.1); // Gunshot sound
+
+            const raycaster = new THREE.Raycaster();
+            // Fire from the exact center (0,0) where the crosshair is
+            raycaster.setFromCamera({ x: 0, y: 0 }, camera);
+            const intersects = raycaster.intersectObjects(targets);
+            
+            if (intersects.length > 0) {
+                const hit = intersects[0].object;
+                scene.remove(hit);
+                targets.splice(targets.indexOf(hit), 1);
+                score++;
+                document.getElementById('score').innerText = score;
+                playSound(1000, 'sine', 0.1, 0.2); // Hit sound
             }
-        });
-
-        document.addEventListener('pointermove', (e) => {
-            if (e.isPrimary === false) return;
-            lon = (onPointerDownPointerX - e.clientX) * 0.1 + onPointerDownLon;
-            lat = (e.clientY - onPointerDownPointerY) * 0.1 + onPointerDownLat;
         });
 
         function animate() {
             requestAnimationFrame(animate);
-            lat = Math.max(-85, Math.min(85, lat));
             phi = THREE.MathUtils.degToRad(90 - lat);
             theta = THREE.MathUtils.degToRad(lon);
 
-            camera.target = new THREE.Vector3(
-                500 * Math.sin(phi) * Math.cos(theta),
-                500 * Math.cos(phi),
-                500 * Math.sin(phi) * Math.sin(theta)
-            );
-            camera.lookAt(camera.target);
+            const targetPos = new THREE.Vector3();
+            targetPos.setFromSphericalCoords(100, phi, theta);
+            camera.lookAt(targetPos);
+            
+            targets.forEach(t => t.rotation.y += 0.02);
             renderer.render(scene, camera);
         }
         animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
     </script>
 </body>
 </html>
