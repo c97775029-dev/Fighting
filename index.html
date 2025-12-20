@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-    <title>Aim Pro: Zombie Survival</title>
+    <title>Aim Pro: Road Rage</title>
     <style>
         :root { --n: #0fcc; --h: #f36; --p: #bf00ff; --death: #ff0000; }
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; touch-action: none; color: #fff; transition: background 0.3s; }
@@ -14,8 +14,6 @@
         #power-bar { width: 150px; height: 10px; background: #333; border-radius: 5px; overflow: hidden; margin-top: 5px; }
         #power-fill { width: 0%; height: 100%; background: var(--p); transition: width 0.3s; box-shadow: 0 0 10px var(--p); }
 
-        #diag-box { position: absolute; bottom: 15%; width: 80%; background: rgba(0,0,0,.9); border: 2px solid var(--n); padding: 20px; z-index: 50; border-radius: 10px; }
-        
         #cross-cont { position: absolute; inset: 50%; width: 40px; height: 40px; transform: translate(-50%,-50%); pointer-events: none; z-index: 5; }
         #cross { width: 100%; height: 100%; border: 2px solid var(--n); border-radius: 50%; transition: .1s; }
         .hit #cross { border-color: var(--h); transform: scale(1.3); }
@@ -24,24 +22,21 @@
         #slow-mo-btn { position: absolute; bottom: 40px; left: 40px; width: 70px; height: 70px; border-radius: 10px; border: 2px solid var(--p); color: var(--p); z-index: 30; display: flex; justify-content: center; align-items: center; font-size: 0.8rem; font-weight: bold; }
 
         button { padding: 12px 30px; background: var(--n); border: none; border-radius: 5px; font-weight: bold; cursor: pointer; margin: 5px; }
-        #game-over-screen { background: rgba(50, 0, 0, 0.9); }
-
+        
         @keyframes shake {
             0% { transform: translate(1px, 1px); }
             20% { transform: translate(-3px, 0px); }
             40% { transform: translate(3px, 2px); }
-            60% { transform: translate(-3px, 1px); }
-            80% { transform: translate(3px, 1px); }
-            100% { transform: translate(1px, -2px); }
+            100% { transform: translate(0, 0); }
         }
     </style>
 </head>
 <body>
 
 <div id="hud" class="hidden">
-    <div class="stat">WAVE: <span id="chap-n">1</span></div>
     <div class="stat">KILLS: <span id="s-val">0</span></div>
     <div id="power-bar"><div id="power-fill"></div></div>
+    <div style="color:var(--n); font-size: 0.8rem;">DRIVING FORWARD...</div>
 </div>
 
 <div id="cross-cont" class="hidden"><div id="cross"></div></div>
@@ -49,73 +44,68 @@
 <div id="slow-mo-btn" class="hidden">SLOW<br>MO</div>
 
 <div id="menu" class="screen">
-    <h1 style="color:var(--n); text-shadow:0 0 15px var(--n)">ZOMBIE AIM PRO</h1>
-    <div id="gun-sel">
-        <button onclick="setGun(0)">PISTOL</button>
-        <button onclick="setGun(1)">SNIPER</button>
-        <button onclick="setGun(2)">SMG</button>
-    </div>
-    <button id="start-btn" style="background:#fff; color:#000; margin-top:20px;">START MISSION</button>
+    <h1 style="color:var(--n); text-shadow:0 0 15px var(--n)">ZOMBIE HIGHWAY</h1>
+    <p>Shoot the zombies or run them over!</p>
+    <button id="start-btn" style="background:#fff; color:#000;">START ENGINE</button>
 </div>
 
-<div id="game-over-screen" class="screen hidden">
-    <h1 style="color:var(--death); font-size: 3rem;">YOU WERE EATEN</h1>
-    <p>FINAL KILLS: <span id="final-score">0</span></p>
-    <button onclick="location.reload()">TRY AGAIN</button>
-</div>
-
-<div id="diag-box" class="hidden">
-    <div id="diag-text"></div>
-    <div style="font-size:0.8rem; color:var(--n); margin-top:10px;">[ TAP TO CONTINUE ]</div>
+<div id="game-over" class="screen hidden">
+    <h1 style="color:var(--death)">VEHICLE DESTROYED</h1>
+    <p>KILLS: <span id="final-score">0</span></p>
+    <button onclick="location.reload()">RETRY</button>
 </div>
 
 <script type="module">
 import * as THREE from "https://cdn.skypack.dev/three@0.136.0";
 
 const $ = id => document.getElementById(id);
-const chapters = [
-    { name: "The Streets", color: 0x00ffcc, diag: ["They're coming from the fog...", "Don't let them touch you.", "Aim for the heads!"] },
-    { name: "The Breach", color: 0xff3366, diag: ["The horde is growing stronger.", "They are moving faster now!", "Watch your back."] }
-];
-const guns = [
-    { name: "Pistol", rate: 400, pitch: 1 },
-    { name: "Sniper", rate: 1200, pitch: 0.5 },
-    { name: "SMG", rate: 150, pitch: 2 }
-];
-
-let curChap=0, curGun=0, score=0, run=false, power=0, isSlow=false, pool=[];
+let score=0, run=false, power=0, isSlow=false, pool=[], roadItems=[];
 let lon=0, lat=0, sInt;
 
-const ctx = new (window.AudioContext||window.webkitAudioContext)();
-const tone = (f, t="sine", v=0.1, d=0.1) => {
-    if (ctx.state === 'suspended') return;
-    const o=ctx.createOscillator(), g=ctx.createGain();
-    o.type=t; o.frequency.value=f; g.gain.value=v;
-    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime+d);
-    o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime+d);
-};
-
-// Three.js Setup
 const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x000000, 0.05);
 const cam = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.1, 1000);
 const renderer = new THREE.WebGLRenderer({ antialias:true });
 renderer.setSize(innerWidth, innerHeight);
 document.body.appendChild(renderer.domElement);
 
+// Car Hood Setup (Static group attached to camera)
+const carGroup = new THREE.Group();
+const hood = new THREE.Mesh(new THREE.BoxGeometry(4, 0.5, 2), new THREE.MeshPhongMaterial({color: 0x111111}));
+hood.position.set(0, -1.2, -1.5);
+carGroup.add(hood);
+scene.add(carGroup);
+
 const light = new THREE.HemisphereLight(0x444444, 0x000000, 1);
 scene.add(light);
-const pL = new THREE.PointLight(0x00ffcc, 1, 15);
-cam.add(pL);
-scene.add(cam);
+const pL = new THREE.PointLight(0x00ffcc, 1, 20);
+pL.position.set(0, 2, 0);
+scene.add(pL);
 
-// Create Zombie Mesh
+// Road Environment
+const roadGeo = new THREE.PlaneGeometry(10, 100);
+const roadMat = new THREE.MeshPhongMaterial({color: 0x050505});
+const road = new THREE.Mesh(roadGeo, roadMat);
+road.rotation.x = -Math.PI/2;
+road.position.y = -2;
+scene.add(road);
+
+// Create Road Side Decor
+for(let i=0; i<10; i++) {
+    const pole = new THREE.Mesh(new THREE.BoxGeometry(0.2, 5, 0.2), new THREE.MeshBasicMaterial({color: 0x00ffcc}));
+    pole.position.set(i % 2 ? -6 : 6, 0, -i * 10);
+    scene.add(pole);
+    roadItems.push(pole);
+}
+
+// Zombie Pool
 const createZombie = () => {
-    const group = new THREE.Group();
-    const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.2, 0.4), new THREE.MeshPhongMaterial({color: 0x222222}));
-    const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), new THREE.MeshPhongMaterial({color: 0x00ffcc}));
-    head.position.y = 0.9;
-    group.add(body, head);
-    return group;
+    const g = new THREE.Group();
+    const b = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.2, 0.4), new THREE.MeshPhongMaterial({color: 0x222222}));
+    const h = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), new THREE.MeshPhongMaterial({color: 0xff3366}));
+    h.position.y = 0.8;
+    g.add(b, h);
+    return g;
 };
 
 for(let i=0; i<20; i++) {
@@ -128,145 +118,97 @@ const spawn = () => {
     if(!run) return;
     const z = pool.find(x => !x.userData.active);
     if(!z) return;
-    const angle = Math.random() * Math.PI * 2;
-    const dist = 25;
-    z.position.set(Math.cos(angle)*dist, -1.2, Math.sin(angle)*dist);
-    z.userData.speed = (0.04 + (curChap * 0.02)) + (Math.random() * 0.02);
+    z.position.set((Math.random()-0.5)*8, -1.4, -40);
     z.userData.active = true;
     z.visible = true;
-    z.children[1].material.color.set(chapters[curChap].color);
 };
 
-// Controls
+// Input
 let sx, sy, slon, slat;
 window.addEventListener("touchstart", e => { sx=e.touches[0].clientX; sy=e.touches[0].clientY; slon=lon; slat=lat; });
 window.addEventListener("touchmove", e => {
     if(!run) return;
     lon = slon - (e.touches[0].clientX - sx) * 0.2;
-    lat = Math.max(-85, Math.min(85, slat + (sy - e.touches[0].clientY) * 0.2));
+    lat = Math.max(-30, Math.min(30, slat + (sy - e.touches[0].clientY) * 0.2));
 });
 
-// Shooting
+// Sound
+const ctx = new (window.AudioContext||window.webkitAudioContext)();
+const tone = (f, v=0.1, d=0.1) => {
+    if(ctx.state==='suspended') ctx.resume();
+    const o=ctx.createOscillator(), g=ctx.createGain();
+    o.frequency.value=f; g.gain.value=v;
+    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime+d);
+    o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime+d);
+};
+
+// Shoot
 $("shoot").ontouchstart = e => {
     e.preventDefault(); if(!run) return;
-    tone(100 * guns[curGun].pitch, "sawtooth", 0.1, 0.2);
+    tone(150, 0.1, 0.2);
     const ray = new THREE.Raycaster();
     ray.setFromCamera({x:0, y:0}, cam);
     const hits = ray.intersectObjects(pool, true);
-    
     if(hits.length > 0) {
-        let hitObj = hits[0].object;
-        while(hitObj.parent && !hitObj.userData.active) hitObj = hitObj.parent;
-        
-        if(hitObj.userData.active) {
-            hitObj.userData.active = false;
+        let target = hits[0].object;
+        while(target.parent && !target.userData.active) target = target.parent;
+        if(target.userData.active) {
+            target.userData.active = false;
             score++; $("s-val").textContent = score;
-            power = Math.min(100, power + 8);
-            $("power-fill").style.width = power + "%";
-            $("cross-cont").classList.add("hit"); 
-            setTimeout(()=>$("cross-cont").classList.remove("hit"), 100);
-            tone(400, "sine", 0.1, 0.05);
+            tone(400, 0.1, 0.05);
         }
     }
 };
 
-$("slow-mo-btn").ontouchstart = () => {
-    if(power < 40 || isSlow) return;
-    isSlow = true; power -= 40;
-    $("power-fill").style.width = power + "%";
-    tone(150, "sine", 0.2, 0.5);
-    setTimeout(() => { isSlow = false; }, 3000);
-};
-
-window.setGun = (id) => { curGun = id; tone(400); };
-
-const gameOver = () => {
-    if (!run) return;
-    run = false;
-    clearInterval(sInt);
-
-    // Visual effect only - No sound
-    document.body.style.background = "#400"; 
-    renderer.domElement.style.animation = "shake 0.2s 5";
-
-    setTimeout(() => {
-        $("hud").classList.add("hidden");
-        $("shoot").classList.add("hidden");
-        $("cross-cont").classList.add("hidden");
-        $("slow-mo-btn").classList.add("hidden");
-        $("game-over-screen").classList.remove("hidden");
-        $("final-score").textContent = score;
-        document.body.style.background = "#000";
-        renderer.domElement.style.animation = "none";
-    }, 600);
-};
-
-const showDialogue = (idx, cb) => {
-    const lines = chapters[idx].diag;
-    let i = 0;
-    $("diag-box").classList.remove("hidden");
-    $("diag-text").textContent = lines[i];
-    const next = () => {
-        i++;
-        if(i < lines.length) $("diag-text").textContent = lines[i];
-        else {
-            $("diag-box").classList.add("hidden");
-            window.removeEventListener("touchstart", next);
-            cb();
-        }
-    };
-    window.addEventListener("touchstart", next);
-};
-
-const startSequence = () => {
+$("start-btn").onclick = () => {
+    run = true;
     $("menu").classList.add("hidden");
-    showDialogue(curChap, () => {
-        run = true;
-        $("hud").classList.remove("hidden");
-        $("shoot").classList.remove("hidden");
-        $("cross-cont").classList.remove("hidden");
-        $("slow-mo-btn").classList.remove("hidden");
-        $("chap-n").textContent = curChap + 1;
-        sInt = setInterval(spawn, 800 - (curChap * 200));
-    });
+    $("hud").classList.remove("hidden");
+    $("shoot").classList.remove("hidden");
+    $("cross-cont").classList.remove("hidden");
+    sInt = setInterval(spawn, 1000);
 };
 
-$("start-btn").onclick = () => { ctx.resume(); curChap=0; score=0; startSequence(); };
-
-// Game Loop
 (function loop(){
     requestAnimationFrame(loop);
-    const timeMult = isSlow ? 0.2 : 1.0;
+    const speed = isSlow ? 0.05 : 0.4;
     
-    cam.lookAt(new THREE.Vector3().setFromSphericalCoords(100, THREE.MathUtils.degToRad(90-lat), THREE.MathUtils.degToRad(lon)));
-    
-    let closestDist = 100;
+    if(run) {
+        cam.lookAt(new THREE.Vector3().setFromSphericalCoords(100, THREE.MathUtils.degToRad(90-lat), THREE.MathUtils.degToRad(lon)));
+        
+        // Move Environment
+        roadItems.forEach(p => {
+            p.position.z += speed;
+            if(p.position.z > 10) p.position.z = -80;
+        });
 
-    pool.forEach(z => {
-        if(z.userData.active) {
-            const dir = new THREE.Vector3(0, -1.2, 0).sub(z.position).normalize();
-            z.position.add(dir.multiplyScalar(z.userData.speed * timeMult));
-            z.lookAt(0, -1.2, 0);
+        pool.forEach(z => {
+            if(z.userData.active) {
+                z.position.z += speed; // Zombie "approaches" car
+                
+                // ROADKILL COLLISION
+                if(z.position.z > -2 && z.position.z < 0) {
+                    if(Math.abs(z.position.x) < 2) { // Hit by car
+                        z.userData.active = false;
+                        score++;
+                        $("s-val").textContent = score;
+                        renderer.domElement.style.animation = "shake 0.1s 2";
+                        setTimeout(()=>renderer.domElement.style.animation="", 200);
+                    }
+                }
 
-            const dist = z.position.distanceTo(new THREE.Vector3(0,0,0));
-            if(dist < closestDist) closestDist = dist;
-
-            if(dist < 2.3 && run) gameOver();
-
-            z.scale.lerp(new THREE.Vector3(1,1,1), 0.1);
-        } else {
-            z.scale.lerp(new THREE.Vector3(0,0,0), 0.2);
-            if(z.scale.x < 0.05) z.visible = false;
-        }
-    });
-
-    if(run && closestDist < 8) {
-        const intensity = (1 - (closestDist / 8)) * 0.6;
-        document.body.style.boxShadow = `inset 0 0 ${intensity * 100}px rgba(255,0,0,${intensity})`;
-    } else {
-        document.body.style.boxShadow = "none";
+                // GAME OVER (If they get past the car and hit "you")
+                if(z.position.z > 2) {
+                    run = false;
+                    $("game-over").classList.remove("hidden");
+                    $("final-score").textContent = score;
+                }
+                z.scale.lerp(new THREE.Vector3(1,1,1), 0.1);
+            } else {
+                z.scale.lerp(new THREE.Vector3(0,0,0), 0.2);
+            }
+        });
     }
-
     renderer.render(scene, cam);
 })();
 </script>
