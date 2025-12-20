@@ -5,7 +5,7 @@
     <title>Aim Pro: Zombie Survival</title>
     <style>
         :root { --n: #0fcc; --h: #f36; --p: #bf00ff; --death: #ff0000; }
-        body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; touch-action: none; color: #fff; }
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; touch-action: none; color: #fff; transition: background 0.3s; }
         .screen { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; background: rgba(0,0,0,.85); z-index: 20; backdrop-filter: blur(10px); text-align: center; }
         .hidden { display: none !important; }
         
@@ -25,6 +25,15 @@
 
         button { padding: 12px 30px; background: var(--n); border: none; border-radius: 5px; font-weight: bold; cursor: pointer; margin: 5px; }
         #game-over-screen { background: rgba(50, 0, 0, 0.9); }
+
+        @keyframes shake {
+            0% { transform: translate(1px, 1px); }
+            20% { transform: translate(-3px, 0px); }
+            40% { transform: translate(3px, 2px); }
+            60% { transform: translate(-3px, 1px); }
+            80% { transform: translate(3px, 1px); }
+            100% { transform: translate(1px, -2px); }
+        }
     </style>
 </head>
 <body>
@@ -51,7 +60,7 @@
 
 <div id="game-over-screen" class="screen hidden">
     <h1 style="color:var(--death); font-size: 3rem;">YOU WERE EATEN</h1>
-    <p>FINAL SCORE: <span id="final-score">0</span></p>
+    <p>FINAL KILLS: <span id="final-score">0</span></p>
     <button onclick="location.reload()">TRY AGAIN</button>
 </div>
 
@@ -79,6 +88,7 @@ let lon=0, lat=0, sInt;
 
 const ctx = new (window.AudioContext||window.webkitAudioContext)();
 const tone = (f, t="sine", v=0.1, d=0.1) => {
+    if (ctx.state === 'suspended') return;
     const o=ctx.createOscillator(), g=ctx.createGain();
     o.type=t; o.frequency.value=f; g.gain.value=v;
     g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime+d);
@@ -94,11 +104,11 @@ document.body.appendChild(renderer.domElement);
 
 const light = new THREE.HemisphereLight(0x444444, 0x000000, 1);
 scene.add(light);
-const pL = new THREE.PointLight(0x00ffcc, 1, 10);
+const pL = new THREE.PointLight(0x00ffcc, 1, 15);
 cam.add(pL);
 scene.add(cam);
 
-// Create Zombie Mesh (Group of Head and Body)
+// Create Zombie Mesh
 const createZombie = () => {
     const group = new THREE.Group();
     const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.2, 0.4), new THREE.MeshPhongMaterial({color: 0x222222}));
@@ -118,14 +128,10 @@ const spawn = () => {
     if(!run) return;
     const z = pool.find(x => !x.userData.active);
     if(!z) return;
-    
-    // Spawn in a circle far away
     const angle = Math.random() * Math.PI * 2;
     const dist = 25;
-    z.position.set(Math.cos(angle)*dist, -1, Math.sin(angle)*dist);
-    
-    // Randomize speed based on chapter
-    z.userData.speed = (0.03 + (curChap * 0.02)) + (Math.random() * 0.02);
+    z.position.set(Math.cos(angle)*dist, -1.2, Math.sin(angle)*dist);
+    z.userData.speed = (0.04 + (curChap * 0.02)) + (Math.random() * 0.02);
     z.userData.active = true;
     z.visible = true;
     z.children[1].material.color.set(chapters[curChap].color);
@@ -143,7 +149,7 @@ window.addEventListener("touchmove", e => {
 // Shooting
 $("shoot").ontouchstart = e => {
     e.preventDefault(); if(!run) return;
-    tone(80, "sawtooth", 0.1, 0.2);
+    tone(100 * guns[curGun].pitch, "sawtooth", 0.1, 0.2);
     const ray = new THREE.Raycaster();
     ray.setFromCamera({x:0, y:0}, cam);
     const hits = ray.intersectObjects(pool, true);
@@ -175,14 +181,24 @@ $("slow-mo-btn").ontouchstart = () => {
 window.setGun = (id) => { curGun = id; tone(400); };
 
 const gameOver = () => {
+    if (!run) return;
     run = false;
     clearInterval(sInt);
-    $("hud").classList.add("hidden");
-    $("shoot").classList.add("hidden");
-    $("cross-cont").classList.add("hidden");
-    $("game-over-screen").classList.remove("hidden");
-    $("final-score").textContent = score;
-    tone(50, "sawtooth", 0.3, 1);
+
+    // Visual effect only - No sound
+    document.body.style.background = "#400"; 
+    renderer.domElement.style.animation = "shake 0.2s 5";
+
+    setTimeout(() => {
+        $("hud").classList.add("hidden");
+        $("shoot").classList.add("hidden");
+        $("cross-cont").classList.add("hidden");
+        $("slow-mo-btn").classList.add("hidden");
+        $("game-over-screen").classList.remove("hidden");
+        $("final-score").textContent = score;
+        document.body.style.background = "#000";
+        renderer.domElement.style.animation = "none";
+    }, 600);
 };
 
 const showDialogue = (idx, cb) => {
@@ -212,11 +228,6 @@ const startSequence = () => {
         $("slow-mo-btn").classList.remove("hidden");
         $("chap-n").textContent = curChap + 1;
         sInt = setInterval(spawn, 800 - (curChap * 200));
-        setTimeout(() => {
-            if(run && curChap < chapters.length -1) {
-                curChap++; clearInterval(sInt); startSequence();
-            }
-        }, 20000);
     });
 };
 
@@ -229,16 +240,18 @@ $("start-btn").onclick = () => { ctx.resume(); curChap=0; score=0; startSequence
     
     cam.lookAt(new THREE.Vector3().setFromSphericalCoords(100, THREE.MathUtils.degToRad(90-lat), THREE.MathUtils.degToRad(lon)));
     
+    let closestDist = 100;
+
     pool.forEach(z => {
         if(z.userData.active) {
-            // Move toward player (0,0,0)
-            const dir = new THREE.Vector3(0, -1, 0).sub(z.position).normalize();
+            const dir = new THREE.Vector3(0, -1.2, 0).sub(z.position).normalize();
             z.position.add(dir.multiplyScalar(z.userData.speed * timeMult));
-            z.lookAt(0, -1, 0);
+            z.lookAt(0, -1.2, 0);
 
-            // Check distance for Death
             const dist = z.position.distanceTo(new THREE.Vector3(0,0,0));
-            if(dist < 2.5) gameOver();
+            if(dist < closestDist) closestDist = dist;
+
+            if(dist < 2.3 && run) gameOver();
 
             z.scale.lerp(new THREE.Vector3(1,1,1), 0.1);
         } else {
@@ -246,6 +259,14 @@ $("start-btn").onclick = () => { ctx.resume(); curChap=0; score=0; startSequence
             if(z.scale.x < 0.05) z.visible = false;
         }
     });
+
+    if(run && closestDist < 8) {
+        const intensity = (1 - (closestDist / 8)) * 0.6;
+        document.body.style.boxShadow = `inset 0 0 ${intensity * 100}px rgba(255,0,0,${intensity})`;
+    } else {
+        document.body.style.boxShadow = "none";
+    }
+
     renderer.render(scene, cam);
 })();
 </script>
