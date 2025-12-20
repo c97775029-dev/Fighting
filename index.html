@@ -69,17 +69,13 @@ const $ = id => document.getElementById(id);
 let score = 0, run = false, pool = [], abilityReady = true;
 let lon = 0, lat = 0;
 
-// Wait for DOM
-document.addEventListener("DOMContentLoaded", () => {
-    $("start-btn").classList.remove("hidden");
-    document.querySelector("#menu p").classList.add("hidden");
-});
-
 // --- 3D SETUP ---
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87CEEB);
+
 const cam = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-cam.position.set(0, 2, 10);
+cam.position.set(0, 2, 10); // starting behind the car
+
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
@@ -183,13 +179,20 @@ $("ability-btn").addEventListener("touchstart", abilityFunction);
 $("fire-btn").addEventListener("click", fireFunction);
 $("ability-btn").addEventListener("click", abilityFunction);
 
-$("start-btn").addEventListener("click", () => {
-    run=true;
-    $("menu").classList.add("hidden");
-    $("hud").classList.remove("hidden");
-    $("crosshair").classList.remove("hidden");
-    $("controls").classList.remove("hidden");
-    setInterval(spawn, 1000);
+// --- FIX: START BUTTON ---
+document.addEventListener("DOMContentLoaded", () => {
+    const startBtn = $("start-btn");
+    startBtn.classList.remove("hidden");
+    document.querySelector("#menu p").classList.add("hidden");
+
+    startBtn.addEventListener("click", () => {
+        run=true;
+        $("menu").classList.add("hidden");
+        $("hud").classList.remove("hidden");
+        $("crosshair").classList.remove("hidden");
+        $("controls").classList.remove("hidden");
+        setInterval(spawn, 1000);
+    });
 });
 
 // --- LOOP ---
