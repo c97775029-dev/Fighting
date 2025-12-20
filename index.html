@@ -2,38 +2,60 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-    <title>Aim Pro</title>
+    <title>Aim Pro: Anime Story</title>
     <style>
-        :root { --n: #0fcc; --h: #f36; }
-        body { margin: 0; overflow: hidden; background: #000; font-family: sans-serif; touch-action: none; color: #fff; }
-        .screen { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; background: rgba(0,0,0,.8); z-index: 20; backdrop-filter: blur(5px); }
+        :root { --n: #0fcc; --h: #f36; --p: #bf00ff; }
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; touch-action: none; color: #fff; }
+        .screen { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; background: rgba(0,0,0,.85); z-index: 20; backdrop-filter: blur(10px); text-align: center; }
         .hidden { display: none !important; }
+        
+        /* HUD & POWER */
         #hud { position: absolute; top: 20px; left: 20px; z-index: 10; pointer-events: none; }
-        .stat { background: rgba(0,204,204,.1); border-left: 4px solid var(--n); padding: 8px; margin-bottom: 5px; font-weight: bold; }
+        .stat { background: rgba(0,0,0,.5); border-left: 4px solid var(--n); padding: 8px; margin-bottom: 5px; font-weight: bold; }
+        #power-bar { width: 150px; height: 10px; background: #333; border-radius: 5px; overflow: hidden; margin-top: 5px; }
+        #power-fill { width: 0%; height: 100%; background: var(--p); transition: width 0.3s; box-shadow: 0 0 10px var(--p); }
+
+        /* DIALOGUE */
+        #diag-box { position: absolute; bottom: 15%; width: 80%; background: rgba(0,0,0,.9); border: 2px solid var(--n); padding: 20px; z-index: 50; border-radius: 10px; font-size: 1.2rem; }
+        
+        /* CROSSHAIR & FIRE */
         #cross-cont { position: absolute; inset: 50%; width: 40px; height: 40px; transform: translate(-50%,-50%); pointer-events: none; z-index: 5; }
-        #cross { width: 100%; height: 100%; border: 2px solid var(--n); border-radius: 50%; opacity: .5; transition: .1s; }
-        #hit-m { position: absolute; inset: 0; display: flex; justify-content: center; align-items: center; color: var(--h); font-weight: bold; opacity: 0; }
-        .hit #cross { border-color: var(--h); transform: scale(1.2); opacity: 1; }
-        .hit #hit-m { opacity: 1; }
-        #shoot { position: absolute; bottom: 40px; right: 40px; width: 100px; height: 100px; border-radius: 50%; border: 3px solid var(--n); background: rgba(0,204,204,.1); color: var(--n); font-weight: bold; z-index: 30; display: flex; justify-content: center; align-items: center; }
-        button { padding: 15px 50px; background: var(--n); border: none; border-radius: 30px; font-weight: bold; font-size: 1.2rem; cursor: pointer; }
+        #cross { width: 100%; height: 100%; border: 2px solid var(--n); border-radius: 50%; transition: .1s; }
+        .hit #cross { border-color: var(--h); transform: scale(1.3); }
+        #shoot { position: absolute; bottom: 40px; right: 40px; width: 90px; height: 90px; border-radius: 50%; border: 3px solid var(--n); background: rgba(0,255,204,.1); color: var(--n); font-weight: bold; z-index: 30; display: flex; justify-content: center; align-items: center; }
+        #slow-mo-btn { position: absolute; bottom: 40px; left: 40px; width: 70px; height: 70px; border-radius: 10px; border: 2px solid var(--p); color: var(--p); z-index: 30; display: flex; justify-content: center; align-items: center; font-size: 0.8rem; font-weight: bold; }
+
+        button { padding: 12px 30px; background: var(--n); border: none; border-radius: 5px; font-weight: bold; cursor: pointer; margin: 5px; }
     </style>
 </head>
 <body>
 
-<div id="hud" class="hidden"><div class="stat">SCORE: <span id="s-val">0</span></div><div class="stat">TIME: <span id="t-val">60</span></div></div>
-<div id="combo" style="position:absolute; top:20px; right:20px; color:var(--h); font-size:2rem; font-weight:900;"></div>
-<div id="cross-cont" class="hidden"><div id="cross"></div><div id="hit-m">×</div></div>
+<div id="hud" class="hidden">
+    <div class="stat">CHAPTER: <span id="chap-n">1</span></div>
+    <div class="stat">SCORE: <span id="s-val">0</span></div>
+    <div id="power-bar"><div id="power-fill"></div></div>
+    <div style="font-size: 0.7rem; color: var(--p);">ULTIMATE READY</div>
+</div>
+
+<div id="cross-cont" class="hidden"><div id="cross"></div></div>
 <div id="shoot" class="hidden">FIRE</div>
+<div id="slow-mo-btn" class="hidden">SLOW<br>MO</div>
 
 <div id="menu" class="screen">
-    <h1 id="title" style="color:var(--n); text-shadow:0 0 10px var(--n)">AIM PRO</h1>
-    <p>BEST: <span id="b-val">0</span></p>
-    <div style="width:250px; text-align:center; margin:20px;">
-        Sens: <span id="sens-l">0.15</span><br>
-        <input id="sens-s" type="range" min="0.05" max="0.5" value="0.15" step="0.01" style="width:100%">
+    <h1 style="color:var(--n); text-shadow:0 0 15px var(--n)">AIM PRO: ANIME</h1>
+    <div id="gun-sel">
+        <p>SELECT WEAPON:</p>
+        <button onclick="setGun(0)">PISTOL</button>
+        <button onclick="setGun(1)">SNIPER</button>
+        <button onclick="setGun(2)">SMG</button>
     </div>
-    <button id="play">START</button>
+    <p>BEST: <span id="b-val">0</span></p>
+    <button id="start-btn" style="background:#fff; color:#000; margin-top:20px;">START STORY</button>
+</div>
+
+<div id="diag-box" class="hidden">
+    <div id="diag-text"></div>
+    <div style="font-size:0.8rem; color:var(--n); margin-top:10px;">[ TAP TO CONTINUE ]</div>
 </div>
 
 <div id="count" class="screen hidden"><h1 id="cd-t" style="font-size:8rem; color:var(--n)">3</h1></div>
@@ -42,8 +64,20 @@
 import * as THREE from "https://cdn.skypack.dev/three@0.136.0";
 
 const $ = id => document.getElementById(id);
-let sens=0.15, score=0, time=60, combo=0, lastH=0, run=false, pool=[], tInt, sInt;
+const chapters = [
+    { name: "Neon City", color: 0x00ffcc, diag: ["The city is silent...", "But my sensors detect movement.", "They're coming."] },
+    { name: "Cursed Void", color: 0xff3366, diag: ["The atmosphere is heavy.", "Ghosts of the old world haunt this place.", "Aim for the core."] }
+];
+const guns = [
+    { name: "Pistol", rate: 400, pitch: 1 },
+    { name: "Sniper", rate: 1200, pitch: 0.5 },
+    { name: "SMG", rate: 150, pitch: 2 }
+];
 
+let curChap=0, curGun=0, score=0, run=false, power=0, isSlow=false, pool=[];
+let tInt, sInt, lon=0, lat=0;
+
+// Audio
 const ctx = new (window.AudioContext||window.webkitAudioContext)();
 const tone = (f, t="sine", v=0.1, d=0.1) => {
     const o=ctx.createOscillator(), g=ctx.createGain();
@@ -52,25 +86,18 @@ const tone = (f, t="sine", v=0.1, d=0.1) => {
     o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime+d);
 };
 
+// Three.js
 const scene = new THREE.Scene();
 const cam = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.1, 1000);
 const renderer = new THREE.WebGLRenderer({ antialias:true });
 renderer.setSize(innerWidth, innerHeight);
-renderer.setPixelRatio(devicePixelRatio);
 document.body.appendChild(renderer.domElement);
 
-scene.add(new THREE.AmbientLight(0xffffff, 0.4));
-const pL = new THREE.PointLight(0x00ffcc, 1); cam.add(pL); scene.add(cam);
+const pL = new THREE.PointLight(0xffffff, 1); cam.add(pL); scene.add(cam);
 
-// Starfield
-const sGeo = new THREE.BufferGeometry(), sPos = [];
-for(let i=0; i<3000; i++) sPos.push((Math.random()-0.5)*400, (Math.random()-0.5)*400, (Math.random()-0.5)*400);
-sGeo.setAttribute("position", new THREE.Float32BufferAttribute(sPos, 3));
-scene.add(new THREE.Points(sGeo, new THREE.PointsMaterial({color:0x888888, size:0.6})));
-
-// Targets
-for(let i=0; i<10; i++) {
-    const t = new THREE.Mesh(new THREE.IcosahedronGeometry(0.7,0), new THREE.MeshPhongMaterial({color:0x00ffcc, emissive:0x002211, flatShading:true}));
+// Target Pool
+for(let i=0; i<15; i++) {
+    const t = new THREE.Mesh(new THREE.IcosahedronGeometry(0.7,0), new THREE.MeshPhongMaterial({flatShading:true}));
     t.visible = false; t.userData = { active: false };
     scene.add(t); pool.push(t);
 }
@@ -79,71 +106,115 @@ const spawn = () => {
     if(!run) return;
     const t = pool.find(x => !x.userData.active);
     if(!t) return;
-    const a = (Math.random()-0.5)*Math.PI*1.5, d = 12 + Math.random()*8;
-    t.position.set(Math.sin(a)*d, (Math.random()-0.5)*8, -Math.cos(a)*d);
+    const a = (Math.random()-0.5)*Math.PI*1.8, d = 15;
+    t.position.set(Math.sin(a)*d, (Math.random()-0.5)*10, -Math.cos(a)*d);
+    t.material.color.set(chapters[curChap].color);
     t.scale.set(0.01, 0.01, 0.01); t.visible = true; t.userData.active = true; t.userData.age = performance.now();
 };
 
-let lon=0, lat=0, sx, sy, slon, slat;
-addEventListener("touchstart", e => { sx=e.touches[0].clientX; sy=e.touches[0].clientY; slon=lon; slat=lat; });
-addEventListener("touchmove", e => {
+// Input
+let sx, sy, slon, slat;
+window.addEventListener("touchstart", e => { sx=e.touches[0].clientX; sy=e.touches[0].clientY; slon=lon; slat=lat; });
+window.addEventListener("touchmove", e => {
     if(!run) return;
-    lon = slon - (e.touches[0].clientX - sx)*sens;
-    lat = Math.max(-85, Math.min(85, slat + (sy - e.touches[0].clientY)*sens));
+    lon = slon - (e.touches[0].clientX - sx) * 0.15;
+    lat = Math.max(-85, Math.min(85, slat + (sy - e.touches[0].clientY) * 0.15));
 });
 
+// Shooting
 const ray = new THREE.Raycaster();
 $("shoot").ontouchstart = e => {
     e.preventDefault(); if(!run) return;
-    tone(140, "sawtooth", 0.05, 0.1);
+    tone(100 * guns[curGun].pitch, "sawtooth", 0.1, 0.2);
     ray.setFromCamera({x:0, y:0}, cam);
     const hit = ray.intersectObjects(pool.filter(o => o.userData.active))[0];
     if(hit) {
         hit.object.userData.active = false;
-        let n = performance.now();
-        combo = (n-lastH < 1000 ? combo+1 : 1); lastH = n;
-        score += combo; $("s-val").textContent = score;
-        $("combo").textContent = combo > 1 ? combo+"x" : "";
-        $("cross-cont").classList.add("hit"); setTimeout(() => $("cross-cont").classList.remove("hit"), 150);
-        tone(600+combo*80, "sine", 0.15, 0.1);
+        score++; $("s-val").textContent = score;
+        power = Math.min(100, power + 10);
+        $("power-fill").style.width = power + "%";
+        $("cross-cont").classList.add("hit"); setTimeout(()=>$("cross-cont").classList.remove("hit"), 100);
+        tone(800, "sine", 0.1, 0.1);
     }
 };
 
+// Slow Mo Power
+$("slow-mo-btn").ontouchstart = () => {
+    if(power < 50 || isSlow) return;
+    isSlow = true; power -= 50;
+    $("power-fill").style.width = power + "%";
+    tone(200, "sine", 0.2, 0.5);
+    setTimeout(() => { isSlow = false; }, 4000);
+};
+
+window.setGun = (id) => { curGun = id; tone(400); };
+
+// Story & Game Flow
+const showDialogue = (idx, cb) => {
+    const lines = chapters[idx].diag;
+    let i = 0;
+    $("diag-box").classList.remove("hidden");
+    $("diag-text").textContent = lines[i];
+    
+    const next = () => {
+        i++;
+        if(i < lines.length) $("diag-text").textContent = lines[i];
+        else {
+            $("diag-box").classList.add("hidden");
+            window.removeEventListener("touchstart", next);
+            cb();
+        }
+    };
+    window.addEventListener("touchstart", next);
+};
+
 const begin = () => {
-    run = true; score = 0; time = 60; combo = 0;
-    $("s-val").textContent = 0; $("b-val").textContent = localStorage.getItem("aimProBest") || 0;
-    $("menu").classList.add("hidden"); $("hud").classList.remove("hidden"); $("shoot").classList.remove("hidden"); $("cross-cont").classList.remove("hidden");
-    pool.forEach(o => o.userData.active = false); // Clean reset
-    tInt = setInterval(() => { time--; $("t-val").textContent = time; if(time <= 0) stop(); }, 1000);
-    sInt = setInterval(spawn, 550);
+    run = true; score = 0; power = 0;
+    $("hud").classList.remove("hidden"); $("shoot").classList.remove("hidden"); 
+    $("cross-cont").classList.remove("hidden"); $("slow-mo-btn").classList.remove("hidden");
+    $("chap-n").textContent = curChap + 1;
+    sInt = setInterval(spawn, isSlow ? 1200 : 600);
+    setTimeout(stop, 30000); // 30 sec per chapter
 };
 
 const stop = () => {
-    run = false; clearInterval(tInt); clearInterval(sInt);
-    if(score > (localStorage.getItem("aimProBest")||0)) localStorage.setItem("aimProBest", score);
-    ["hud", "shoot", "cross-cont"].forEach(id => $(id).classList.add("hidden"));
-    $("menu").classList.remove("hidden"); $("title").textContent = "PLAY AGAIN";
+    run = false; clearInterval(sInt);
+    if(curChap < chapters.length - 1) {
+        curChap++;
+        startSequence();
+    } else {
+        $("menu").classList.remove("hidden");
+        $("hud").classList.add("hidden");
+    }
 };
 
-$("play").onclick = () => {
-    ctx.resume(); $("menu").classList.add("hidden"); $("count").classList.remove("hidden");
-    let c = 3; $("cd-t").textContent = c;
-    let i = setInterval(() => { c--; tone(300); $("cd-t").textContent = c; if(c <= 0) { clearInterval(i); $("count").classList.add("hidden"); begin(); } }, 1000);
+const startSequence = () => {
+    $("menu").classList.add("hidden");
+    showDialogue(curChap, () => {
+        begin();
+    });
 };
 
-$("sens-s").oninput = e => { sens = parseFloat(e.target.value); $("sens-l").textContent = sens.toFixed(2); };
+$("start-btn").onclick = () => { ctx.resume(); curChap=0; startSequence(); };
 
+// Loop
 (function loop(){
     requestAnimationFrame(loop);
+    const speed = isSlow ? 0.02 : 1;
     cam.lookAt(new THREE.Vector3().setFromSphericalCoords(100, THREE.MathUtils.degToRad(90-lat), THREE.MathUtils.degToRad(lon)));
+    
     pool.forEach(o => {
-        if(o.userData.active) { o.scale.lerp(new THREE.Vector3(1,1,1), 0.1); o.rotation.y += 0.03; if(performance.now()-o.userData.age > 2600) o.userData.active = false; }
-        else { o.scale.lerp(new THREE.Vector3(0.01,0.01,0.01), 0.2); if(o.scale.x < 0.05) o.visible = false; }
+        if(o.userData.active) {
+            o.scale.lerp(new THREE.Vector3(1,1,1), 0.1 * speed);
+            o.rotation.y += 0.02 * speed;
+            if(performance.now() - o.userData.age > (isSlow ? 6000 : 3000)) o.userData.active = false;
+        } else {
+            o.scale.lerp(new THREE.Vector3(0,0,0), 0.2);
+            if(o.scale.x < 0.01) o.visible = false;
+        }
     });
     renderer.render(scene, cam);
 })();
-
-addEventListener("resize", () => { cam.aspect = innerWidth/innerHeight; cam.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
 </script>
 </body>
 </html>
