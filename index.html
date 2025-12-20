@@ -2,213 +2,251 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-    <title>Aim Pro: Road Rage</title>
+    <title>Anime Defense: Car Survival</title>
     <style>
-        :root { --n: #0fcc; --h: #f36; --p: #bf00ff; --death: #ff0000; }
-        body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; touch-action: none; color: #fff; transition: background 0.3s; }
-        .screen { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; background: rgba(0,0,0,.85); z-index: 20; backdrop-filter: blur(10px); text-align: center; }
+        :root { --n: #0fcc; --h: #f36; --p: #bf00ff; }
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; touch-action: none; color: #fff; }
+        .screen { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; background: rgba(0,0,0,.9); z-index: 100; text-align: center; }
         .hidden { display: none !important; }
         
         #hud { position: absolute; top: 20px; left: 20px; z-index: 10; pointer-events: none; }
-        .stat { background: rgba(0,0,0,.5); border-left: 4px solid var(--n); padding: 8px; margin-bottom: 5px; font-weight: bold; }
-        #power-bar { width: 150px; height: 10px; background: #333; border-radius: 5px; overflow: hidden; margin-top: 5px; }
-        #power-fill { width: 0%; height: 100%; background: var(--p); transition: width 0.3s; box-shadow: 0 0 10px var(--p); }
-
-        #cross-cont { position: absolute; inset: 50%; width: 40px; height: 40px; transform: translate(-50%,-50%); pointer-events: none; z-index: 5; }
-        #cross { width: 100%; height: 100%; border: 2px solid var(--n); border-radius: 50%; transition: .1s; }
-        .hit #cross { border-color: var(--h); transform: scale(1.3); }
+        .stat { background: rgba(0,0,0,.7); border-left: 4px solid var(--n); padding: 8px; margin-bottom: 5px; font-weight: bold; }
         
-        #shoot { position: absolute; bottom: 40px; right: 40px; width: 90px; height: 90px; border-radius: 50%; border: 3px solid var(--n); background: rgba(0,255,204,.1); color: var(--n); font-weight: bold; z-index: 30; display: flex; justify-content: center; align-items: center; }
-        #slow-mo-btn { position: absolute; bottom: 40px; left: 40px; width: 70px; height: 70px; border-radius: 10px; border: 2px solid var(--p); color: var(--p); z-index: 30; display: flex; justify-content: center; align-items: center; font-size: 0.8rem; font-weight: bold; }
-
-        button { padding: 12px 30px; background: var(--n); border: none; border-radius: 5px; font-weight: bold; cursor: pointer; margin: 5px; }
+        #crosshair { position: absolute; inset: 50%; width: 30px; height: 30px; border: 2px solid var(--n); border-radius: 50%; transform: translate(-50%,-50%); pointer-events: none; z-index: 5; }
+        .hit #crosshair { border-color: var(--h); transform: translate(-50%,-50%) scale(1.5); }
         
-        @keyframes shake {
-            0% { transform: translate(1px, 1px); }
-            20% { transform: translate(-3px, 0px); }
-            40% { transform: translate(3px, 2px); }
-            100% { transform: translate(0, 0); }
-        }
+        #controls { position: absolute; bottom: 30px; width: 100%; display: flex; justify-content: space-around; padding: 0 20px; box-sizing: border-box; z-index: 50; }
+        .btn { width: 80px; height: 80px; border-radius: 50%; border: 3px solid #fff; display: flex; justify-content: center; align-items: center; font-weight: bold; background: rgba(0,0,0,0.5); }
+        #fire-btn { border-color: var(--n); color: var(--n); width: 100px; height: 100px; }
+        #ability-btn { border-color: var(--p); color: var(--p); font-size: 0.7rem; }
+
+        #level-banner { position: absolute; top: 20%; width: 100%; text-align: center; font-size: 2rem; color: var(--n); pointer-events: none; text-shadow: 0 0 10px var(--n); }
+        @keyframes shake { 0% { transform: translate(1px, 1px); } 50% { transform: translate(-2px, -1px); } 100% { transform: translate(0,0); } }
     </style>
 </head>
 <body>
 
 <div id="hud" class="hidden">
+    <div class="stat">GUN: <span id="gun-name">Pistol</span></div>
     <div class="stat">KILLS: <span id="s-val">0</span></div>
-    <div id="power-bar"><div id="power-fill"></div></div>
-    <div style="color:var(--n); font-size: 0.8rem;">DRIVING FORWARD...</div>
+    <div class="stat" id="ability-status" style="color:var(--p)">ABILITY READY</div>
 </div>
 
-<div id="cross-cont" class="hidden"><div id="cross"></div></div>
-<div id="shoot" class="hidden">FIRE</div>
-<div id="slow-mo-btn" class="hidden">SLOW<br>MO</div>
+<div id="level-banner" class="hidden"></div>
+<div id="crosshair" class="hidden"></div>
+
+<div id="controls" class="hidden">
+    <div id="ability-btn" class="btn">ANIME<br>POWER</div>
+    <div id="fire-btn" class="btn">FIRE</div>
+</div>
 
 <div id="menu" class="screen">
-    <h1 style="color:var(--n); text-shadow:0 0 15px var(--n)">ZOMBIE HIGHWAY</h1>
-    <p>Shoot the zombies or run them over!</p>
-    <button id="start-btn" style="background:#fff; color:#000;">START ENGINE</button>
+    <h1 style="color:var(--n)">ANIME CAR DEFENSE</h1>
+    <p>Front bumper = Run 'em over.<br>Sides/Back = You're dead.</p>
+    <button id="start-btn" style="padding:15px 40px; font-weight:bold; cursor:pointer;">START MISSION</button>
 </div>
 
 <div id="game-over" class="screen hidden">
-    <h1 style="color:var(--death)">VEHICLE DESTROYED</h1>
-    <p>KILLS: <span id="final-score">0</span></p>
-    <button onclick="location.reload()">RETRY</button>
+    <h1 style="color:red">EATEN</h1>
+    <p>Total Kills: <span id="final-score">0</span></p>
+    <button onclick="location.reload()" style="padding:10px 20px;">RETRY</button>
 </div>
 
 <script type="module">
 import * as THREE from "https://cdn.skypack.dev/three@0.136.0";
 
 const $ = id => document.getElementById(id);
-let score=0, run=false, power=0, isSlow=false, pool=[], roadItems=[];
-let lon=0, lat=0, sInt;
 
+// --- Game Data ---
+const levels = [
+    { name: "Infinity Highway", gun: "Handgun", ability: "VOID (Freeze)", color: 0x00ffcc },
+    { name: "Cursed Night", gun: "Demon Shotgun", ability: "AMATERASU (Burn)", color: 0xff3366 }
+];
+
+let curLvl = 0, score = 0, run = false, abilityReady = true, pool = [];
+let lon = 0, lat = 0, abilityActive = false;
+
+// --- Three.js Setup ---
 const scene = new THREE.Scene();
-scene.fog = new THREE.FogExp2(0x000000, 0.05);
+scene.fog = new THREE.FogExp2(0x000000, 0.04);
 const cam = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.1, 1000);
-const renderer = new THREE.WebGLRenderer({ antialias:true });
+const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(innerWidth, innerHeight);
 document.body.appendChild(renderer.domElement);
 
-// Car Hood Setup (Static group attached to camera)
-const carGroup = new THREE.Group();
-const hood = new THREE.Mesh(new THREE.BoxGeometry(4, 0.5, 2), new THREE.MeshPhongMaterial({color: 0x111111}));
-hood.position.set(0, -1.2, -1.5);
-carGroup.add(hood);
-scene.add(carGroup);
+// Car Setup
+const car = new THREE.Group();
+const body = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.8, 5), new THREE.MeshPhongMaterial({color: 0x111111}));
+const windshield = new THREE.Mesh(new THREE.BoxGeometry(2, 0.5, 0.1), new THREE.MeshPhongMaterial({color: 0x00ccff, transparent: true, opacity: 0.5}));
+windshield.position.set(0, 0.6, -0.5);
+car.add(body, windshield);
+scene.add(car);
 
-const light = new THREE.HemisphereLight(0x444444, 0x000000, 1);
-scene.add(light);
-const pL = new THREE.PointLight(0x00ffcc, 1, 20);
-pL.position.set(0, 2, 0);
-scene.add(pL);
-
-// Road Environment
-const roadGeo = new THREE.PlaneGeometry(10, 100);
-const roadMat = new THREE.MeshPhongMaterial({color: 0x050505});
-const road = new THREE.Mesh(roadGeo, roadMat);
+// Environment
+const road = new THREE.Mesh(new THREE.PlaneGeometry(10, 200), new THREE.MeshPhongMaterial({color: 0x080808}));
 road.rotation.x = -Math.PI/2;
-road.position.y = -2;
+road.position.y = -0.5;
 scene.add(road);
 
-// Create Road Side Decor
-for(let i=0; i<10; i++) {
-    const pole = new THREE.Mesh(new THREE.BoxGeometry(0.2, 5, 0.2), new THREE.MeshBasicMaterial({color: 0x00ffcc}));
-    pole.position.set(i % 2 ? -6 : 6, 0, -i * 10);
-    scene.add(pole);
-    roadItems.push(pole);
-}
+const light = new THREE.HemisphereLight(0xffffff, 0x000000, 1);
+scene.add(light);
 
-// Zombie Pool
+// Zombies
 const createZombie = () => {
     const g = new THREE.Group();
-    const b = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.2, 0.4), new THREE.MeshPhongMaterial({color: 0x222222}));
-    const h = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), new THREE.MeshPhongMaterial({color: 0xff3366}));
+    const b = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.2, 0.5), new THREE.MeshPhongMaterial({color: 0x222222}));
+    const h = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), new THREE.MeshPhongMaterial({color: levels[0].color}));
     h.position.y = 0.8;
     g.add(b, h);
+    g.userData = { active: false, speed: 0.05 };
     return g;
 };
 
-for(let i=0; i<20; i++) {
+for(let i=0; i<30; i++) {
     const z = createZombie();
-    z.visible = false; z.userData = { active: false };
-    scene.add(z); pool.push(z);
+    z.visible = false;
+    scene.add(z);
+    pool.push(z);
 }
 
 const spawn = () => {
     if(!run) return;
     const z = pool.find(x => !x.userData.active);
     if(!z) return;
-    z.position.set((Math.random()-0.5)*8, -1.4, -40);
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 25;
+    z.position.set(Math.cos(angle)*dist, 0.2, Math.sin(angle)*dist);
     z.userData.active = true;
     z.visible = true;
+    z.children[1].material.color.set(levels[curLvl].color);
 };
 
-// Input
+// --- Input & Controls ---
 let sx, sy, slon, slat;
 window.addEventListener("touchstart", e => { sx=e.touches[0].clientX; sy=e.touches[0].clientY; slon=lon; slat=lat; });
 window.addEventListener("touchmove", e => {
     if(!run) return;
     lon = slon - (e.touches[0].clientX - sx) * 0.2;
-    lat = Math.max(-30, Math.min(30, slat + (sy - e.touches[0].clientY) * 0.2));
+    lat = Math.max(-40, Math.min(60, slat + (sy - e.touches[0].clientY) * 0.2));
 });
 
-// Sound
-const ctx = new (window.AudioContext||window.webkitAudioContext)();
+// Sound Utility
 const tone = (f, v=0.1, d=0.1) => {
-    if(ctx.state==='suspended') ctx.resume();
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
     const o=ctx.createOscillator(), g=ctx.createGain();
     o.frequency.value=f; g.gain.value=v;
     g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime+d);
     o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime+d);
 };
 
-// Shoot
-$("shoot").ontouchstart = e => {
-    e.preventDefault(); if(!run) return;
-    tone(150, 0.1, 0.2);
+// Fire Weapon
+$("fire-btn").ontouchstart = (e) => {
+    e.preventDefault();
+    if(!run) return;
+    tone(curLvl === 0 ? 200 : 100, 0.1, 0.15);
     const ray = new THREE.Raycaster();
     ray.setFromCamera({x:0, y:0}, cam);
     const hits = ray.intersectObjects(pool, true);
     if(hits.length > 0) {
-        let target = hits[0].object;
-        while(target.parent && !target.userData.active) target = target.parent;
-        if(target.userData.active) {
-            target.userData.active = false;
-            score++; $("s-val").textContent = score;
-            tone(400, 0.1, 0.05);
+        let t = hits[0].object;
+        while(t.parent && !t.userData.active) t = t.parent;
+        if(t.userData.active) {
+            t.userData.active = false;
+            score++;
+            $("s-val").textContent = score;
+            $("crosshair").classList.add("hit");
+            setTimeout(()=>$("crosshair").classList.remove("hit"), 100);
+            if(score % 15 === 0) nextLevel();
         }
     }
+};
+
+// Anime Ability
+$("ability-btn").ontouchstart = () => {
+    if(!abilityReady || !run) return;
+    abilityReady = false;
+    abilityActive = true;
+    $("ability-status").textContent = "COOLDOWN...";
+    
+    if(curLvl === 0) { // Void Freeze
+        tone(600, 0.2, 1);
+        setTimeout(() => { abilityActive = false; }, 4000);
+    } else { // Amaterasu Burn
+        tone(100, 0.3, 0.5);
+        pool.forEach(z => { if(z.userData.active) z.userData.active = false; score++; });
+        $("s-val").textContent = score;
+        abilityActive = false;
+    }
+
+    setTimeout(() => { 
+        abilityReady = true; 
+        $("ability-status").textContent = "ABILITY READY";
+        tone(800, 0.05, 0.1);
+    }, 10000);
+};
+
+const nextLevel = () => {
+    curLvl = Math.min(curLvl + 1, levels.length - 1);
+    $("level-banner").textContent = "LEVEL " + (curLvl + 1) + ": " + levels[curLvl].name;
+    $("gun-name").textContent = levels[curLvl].gun;
+    $("level-banner").classList.remove("hidden");
+    setTimeout(() => $("level-banner").classList.add("hidden"), 3000);
+};
+
+const gameOver = () => {
+    run = false;
+    $("game-over").classList.remove("hidden");
+    $("final-score").textContent = score;
 };
 
 $("start-btn").onclick = () => {
     run = true;
     $("menu").classList.add("hidden");
     $("hud").classList.remove("hidden");
-    $("shoot").classList.remove("hidden");
-    $("cross-cont").classList.remove("hidden");
-    sInt = setInterval(spawn, 1000);
+    $("crosshair").classList.remove("hidden");
+    $("controls").classList.remove("hidden");
+    setInterval(spawn, 1000);
 };
 
+// --- Loop ---
 (function loop(){
     requestAnimationFrame(loop);
-    const speed = isSlow ? 0.05 : 0.4;
-    
-    if(run) {
-        cam.lookAt(new THREE.Vector3().setFromSphericalCoords(100, THREE.MathUtils.degToRad(90-lat), THREE.MathUtils.degToRad(lon)));
-        
-        // Move Environment
-        roadItems.forEach(p => {
-            p.position.z += speed;
-            if(p.position.z > 10) p.position.z = -80;
-        });
+    if(!run) return;
 
-        pool.forEach(z => {
-            if(z.userData.active) {
-                z.position.z += speed; // Zombie "approaches" car
-                
-                // ROADKILL COLLISION
-                if(z.position.z > -2 && z.position.z < 0) {
-                    if(Math.abs(z.position.x) < 2) { // Hit by car
-                        z.userData.active = false;
-                        score++;
-                        $("s-val").textContent = score;
-                        renderer.domElement.style.animation = "shake 0.1s 2";
-                        setTimeout(()=>renderer.domElement.style.animation="", 200);
-                    }
-                }
+    cam.lookAt(new THREE.Vector3().setFromSphericalCoords(100, THREE.MathUtils.degToRad(90-lat), THREE.MathUtils.degToRad(lon)));
 
-                // GAME OVER (If they get past the car and hit "you")
-                if(z.position.z > 2) {
-                    run = false;
-                    $("game-over").classList.remove("hidden");
-                    $("final-score").textContent = score;
-                }
-                z.scale.lerp(new THREE.Vector3(1,1,1), 0.1);
-            } else {
-                z.scale.lerp(new THREE.Vector3(0,0,0), 0.2);
+    pool.forEach(z => {
+        if(z.userData.active) {
+            // Movement (unless frozen by Void)
+            if(!abilityActive || curLvl !== 0) {
+                const dir = new THREE.Vector3(0, 0, 0).sub(z.position).normalize();
+                z.position.add(dir.multiplyScalar(0.06 + (curLvl * 0.03)));
+                z.lookAt(0, 0, 0);
             }
-        });
-    }
+
+            // Collision Detection
+            const dist = z.position.distanceTo(new THREE.Vector3(0,0,0));
+            
+            if(dist < 2.5) {
+                // Check if they hit the FRONT bumper
+                // Car faces -Z, so front is Z < -1.5
+                if(z.position.z < -1.5 && Math.abs(z.position.x) < 1.5) {
+                    z.userData.active = false;
+                    score++;
+                    $("s-val").textContent = score;
+                    renderer.domElement.style.animation = "shake 0.1s 2";
+                    setTimeout(()=>renderer.domElement.style.animation="", 100);
+                } else {
+                    // They hit sides or back
+                    gameOver();
+                }
+            }
+            z.scale.lerp(new THREE.Vector3(1,1,1), 0.1);
+        } else {
+            z.scale.lerp(new THREE.Vector3(0,0,0), 0.2);
+        }
+    });
+
     renderer.render(scene, cam);
 })();
 </script>
