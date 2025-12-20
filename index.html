@@ -2,63 +2,46 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Zombie Survival: Day One</title>
 <style>
-    body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #87CEEB; font-family: sans-serif; }
-
-    #ui-layer { position: absolute; inset: 0; z-index: 10; pointer-events: none; }
-    .interactive { pointer-events: auto; }
-
-    .screen { 
-        position: absolute; inset: 0; 
-        display: flex; flex-direction: column; justify-content: center; align-items: center; 
-        background: white; z-index: 100; text-align: center;
-    }
-
-    #hud { position: absolute; top: 20px; left: 20px; }
-    .stat { background: rgba(255,255,255,0.9); padding: 10px; margin-bottom: 5px; border-left: 5px solid #2ecc71; font-weight: bold; font-size: 1.2rem; }
-
-    #crosshair { 
-        position: absolute; top: 50%; left: 50%; width: 20px; height: 20px; 
-        border: 2px solid #000; border-radius: 50%; transform: translate(-50%,-50%); 
-    }
-
-    #controls { position: absolute; bottom: 40px; width: 100%; display: flex; justify-content: space-around; }
-    .game-btn { 
-        width: 80px; height: 80px; border-radius: 50%; border: 4px solid #333; 
-        background: white; font-weight: bold; display: flex; justify-content: center; align-items: center;
-        box-shadow: 0 4px 0 #333; 
-    }
-    .game-btn:active { transform: translateY(4px); box-shadow: none; }
-
-    .hidden { display: none !important; }
-    #start-btn { padding: 20px 50px; font-size: 2rem; background: #2ecc71; color: white; border: none; border-radius: 10px; cursor: pointer; }
+body, html { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#87CEEB; font-family:sans-serif;}
+#ui-layer { position:absolute; inset:0; z-index:10; pointer-events:none; }
+.interactive { pointer-events:auto; }
+.screen { position:absolute; inset:0; display:flex; flex-direction:column; justify-content:center; align-items:center; background:white; z-index:100; text-align:center; }
+#hud { position:absolute; top:20px; left:20px; }
+.stat { background:rgba(255,255,255,0.9); padding:10px; margin-bottom:5px; border-left:5px solid #2ecc71; font-weight:bold; font-size:1.2rem; }
+#crosshair { position:absolute; top:50%; left:50%; width:20px; height:20px; border:2px solid #000; border-radius:50%; transform:translate(-50%,-50%); }
+#controls { position:absolute; bottom:40px; width:100%; display:flex; justify-content:space-around; }
+.game-btn { width:80px; height:80px; border-radius:50%; border:4px solid #333; background:white; font-weight:bold; display:flex; justify-content:center; align-items:center; box-shadow:0 4px 0 #333; }
+.game-btn:active { transform:translateY(4px); box-shadow:none; }
+.hidden { display:none !important; }
+#start-btn { padding:20px 50px; font-size:2rem; background:#2ecc71; color:white; border:none; border-radius:10px; cursor:pointer; }
 </style>
 </head>
 <body>
 
 <div id="menu" class="screen">
-    <h1 style="font-size: 2.5rem;">ZOMBIE NEIGHBORHOOD</h1>
-    <p>Loading Mission...</p>
-    <button id="start-btn" class="interactive hidden">START GAME</button>
+  <h1 style="font-size:2.5rem;">ZOMBIE NEIGHBORHOOD</h1>
+  <p>Loading Mission...</p>
+  <button id="start-btn" class="interactive hidden">START GAME</button>
 </div>
 
 <div id="game-over" class="screen hidden">
-    <h1 style="color:red; font-size: 3rem;">CAR OVERRUN</h1>
-    <button onclick="location.reload()" class="interactive" style="padding:15px; background:#333; color:#fff; border:none;">RETRY</button>
+  <h1 style="color:red; font-size:3rem;">CAR OVERRUN</h1>
+  <button onclick="location.reload()" class="interactive" style="padding:15px; background:#333; color:#fff; border:none;">RETRY</button>
 </div>
 
 <div id="ui-layer">
-    <div id="hud" class="hidden">
-        <div class="stat">KILLS: <span id="s-val">0</span></div>
-        <div class="stat" id="ability-status" style="color:#9b59b6">GEAR 5: READY</div>
-    </div>
-    <div id="crosshair" class="hidden"></div>
-    <div id="controls" class="hidden">
-        <div id="ability-btn" class="game-btn interactive" style="color:#9b59b6">GEAR 5</div>
-        <div id="fire-btn" class="game-btn interactive" style="color:red">FIRE</div>
-    </div>
+  <div id="hud" class="hidden">
+    <div class="stat">KILLS: <span id="s-val">0</span></div>
+    <div class="stat" id="ability-status" style="color:#9b59b6">GEAR 5: READY</div>
+  </div>
+  <div id="crosshair" class="hidden"></div>
+  <div id="controls" class="hidden">
+    <div id="ability-btn" class="game-btn interactive" style="color:#9b59b6">GEAR 5</div>
+    <div id="fire-btn" class="game-btn interactive" style="color:red">FIRE</div>
+  </div>
 </div>
 
 <script type="module">
@@ -66,172 +49,141 @@ import * as THREE from "https://cdn.skypack.dev/three@0.136.0";
 
 const $ = id => document.getElementById(id);
 
-let score = 0, run = false, pool = [], abilityReady = true;
-let lon = 0, lat = 0;
+let score=0, run=false, pool=[], abilityReady=true, spawnInterval=null;
+let lon=0, lat=0;
 
 // --- 3D SETUP ---
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87CEEB);
 
-const cam = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-cam.position.set(0, 2, 10); // starting behind the car
+const cam = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight,0.1,1000);
+cam.position.set(0,2,10);
 
-const renderer = new THREE.WebGLRenderer({ antialias: true });
+const renderer = new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
 // Lights
-scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-const sun = new THREE.DirectionalLight(0xffffff, 1);
-sun.position.set(5, 10, 5);
+scene.add(new THREE.AmbientLight(0xffffff,0.6));
+const sun = new THREE.DirectionalLight(0xffffff,1);
+sun.position.set(5,10,5);
 scene.add(sun);
 
-// --- CAR MODEL ---
+// Car
 const car = new THREE.Group();
-const mat = new THREE.MeshStandardMaterial({color: 0x333333});
-const hood = new THREE.Mesh(new THREE.BoxGeometry(3, 0.5, 3), mat); hood.position.set(0, 0.5, -2); car.add(hood);
-const dash = new THREE.Mesh(new THREE.BoxGeometry(3, 0.6, 1), new THREE.MeshStandardMaterial({color: 0x111111})); dash.position.set(0, 1, -0.4); car.add(dash);
-const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.35, 0.05, 12, 24), new THREE.MeshStandardMaterial({color: 0x000000}));
-wheel.position.set(0.7, 1.2, -0.2); wheel.rotation.x = Math.PI/3; car.add(wheel);
+const mat = new THREE.MeshStandardMaterial({color:0x333333});
+car.add(new THREE.Mesh(new THREE.BoxGeometry(3,0.5,3), mat));
+car.add(new THREE.Mesh(new THREE.BoxGeometry(3,0.6,1), new THREE.MeshStandardMaterial({color:0x111111})));
+const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.35,0.05,12,24), new THREE.MeshStandardMaterial({color:0x000000}));
+wheel.position.set(0.7,1.2,-0.2); wheel.rotation.x=Math.PI/3; car.add(wheel);
 scene.add(car);
 
-// --- WORLD ---
-const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshStandardMaterial({color: 0x7cfc00}));
-ground.rotation.x = -Math.PI/2; scene.add(ground);
-const road = new THREE.Mesh(new THREE.PlaneGeometry(12, 200), new THREE.MeshStandardMaterial({color: 0x444444}));
-road.rotation.x = -Math.PI/2; road.position.y = 0.01; scene.add(road);
+// Ground + Road
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(200,200), new THREE.MeshStandardMaterial({color:0x7cfc00}));
+ground.rotation.x=-Math.PI/2; scene.add(ground);
+const road = new THREE.Mesh(new THREE.PlaneGeometry(12,200), new THREE.MeshStandardMaterial({color:0x444444}));
+road.rotation.x=-Math.PI/2; road.position.y=0.01; scene.add(road);
 
-// Suburban Houses
-for(let i=0; i<10; i++){
-    const h = new THREE.Mesh(new THREE.BoxGeometry(6,5,6), new THREE.MeshStandardMaterial({color: Math.random()*0xffffff}));
-    h.position.set(i%2?12:-12, 2.5, -50 + (i*25));
-    scene.add(h);
+// Houses
+for(let i=0;i<10;i++){
+  const h=new THREE.Mesh(new THREE.BoxGeometry(6,5,6), new THREE.MeshStandardMaterial({color:Math.random()*0xffffff}));
+  h.position.set(i%2?12:-12,2.5,-50+(i*25)); scene.add(h);
 }
 
-// --- ZOMBIES ---
-for(let i=0; i<30; i++){
-    const z = new THREE.Group();
-    const b = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 1.2), new THREE.MeshStandardMaterial({color: 0x445522}));
-    const h = new THREE.Mesh(new THREE.SphereGeometry(0.35), new THREE.MeshStandardMaterial({color: 0xff0000}));
-    h.position.y = 1; z.add(b,h);
-    z.visible = false; z.userData = {active:false};
-    scene.add(z); pool.push(z);
+// Zombies
+for(let i=0;i<30;i++){
+  const z=new THREE.Group();
+  const b=new THREE.Mesh(new THREE.CapsuleGeometry(0.3,1.2), new THREE.MeshStandardMaterial({color:0x445522}));
+  const h=new THREE.Mesh(new THREE.SphereGeometry(0.35), new THREE.MeshStandardMaterial({color:0xff0000}));
+  h.position.y=1; z.add(b,h);
+  z.visible=false; z.userData={active:false}; scene.add(z); pool.push(z);
 }
 
-const spawn = () => {
-    if(!run) return;
-    const z = pool.find(x => !x.userData.active);
-    if(z){
-        const ang = Math.random()*Math.PI*2;
-        z.position.set(Math.cos(ang)*30,0.6,Math.sin(ang)*30);
-        z.userData.active = true; z.visible = true;
-    }
-};
+// --- SPAWN ---
+const spawn=()=>{ 
+  if(!run) return;
+  const z=pool.find(x=>!x.userData.active);
+  if(z){ const ang=Math.random()*Math.PI*2; z.position.set(Math.cos(ang)*30,0.6,Math.sin(ang)*30); z.userData.active=true; z.visible=true;}
+}
 
 // --- CONTROLS ---
-let isTouch=false, lastX, lastY;
-window.addEventListener('touchstart', e => { isTouch=true; lastX=e.touches[0].clientX; lastY=e.touches[0].clientY; });
-window.addEventListener('touchend', () => { isTouch=false; });
-window.addEventListener('touchmove', e => {
-    if(!run || !isTouch) return;
-    lon -= (e.touches[0].clientX - lastX)*0.4;
-    lat = Math.max(-20, Math.min(50, lat + (e.touches[0].clientY - lastY)*0.4));
-    lastX = e.touches[0].clientX; lastY = e.touches[0].clientY;
-});
+let isTouch=false,lastX,lastY;
+window.addEventListener('touchstart',e=>{if(run){isTouch=true; lastX=e.touches[0].clientX; lastY=e.touches[0].clientY;}});
+window.addEventListener('touchend',()=>{isTouch=false;});
+window.addEventListener('touchmove',e=>{if(!run || !isTouch) return; lon-=(e.touches[0].clientX-lastX)*0.4; lat=Math.max(-20,Math.min(50,lat+(e.touches[0].clientY-lastY)*0.4)); lastX=e.touches[0].clientX; lastY=e.touches[0].clientY;});
 
-// Mouse drag for desktop
-let mouseDown=false, lastMX, lastMY;
-window.addEventListener('mousedown', e => { mouseDown=true; lastMX=e.clientX; lastMY=e.clientY; });
-window.addEventListener('mouseup', () => { mouseDown=false; });
-window.addEventListener('mousemove', e => {
-    if(!run || !mouseDown) return;
-    lon -= (e.clientX - lastMX)*0.4;
-    lat = Math.max(-20, Math.min(50, lat + (e.clientY - lastMY)*0.4));
-    lastMX=e.clientX; lastMY=e.clientY;
-});
+let mouseDown=false,lastMX,lastMY;
+window.addEventListener('mousedown',e=>{if(run){mouseDown=true; lastMX=e.clientX; lastMY=e.clientY;}});
+window.addEventListener('mouseup',()=>{mouseDown=false;});
+window.addEventListener('mousemove',e=>{if(!run||!mouseDown)return; lon-=(e.clientX-lastMX)*0.4; lat=Math.max(-20,Math.min(50,lat+(e.clientY-lastMY)*0.4)); lastMX=e.clientX; lastMY=e.clientY;});
 
 // --- BUTTONS ---
-const fireFunction = (e) => {
-    if(e) e.preventDefault();
-    const ray = new THREE.Raycaster();
-    ray.setFromCamera({x:0,y:0}, cam);
-    const hits = ray.intersectObjects(pool,true);
-    if(hits.length>0){
-        let t=hits[0].object;
-        while(t.parent && !t.userData.active) t=t.parent;
-        if(t.userData.active){
-            t.userData.active=false;
-            score++; $("s-val").textContent=score;
-        }
-    }
+const fireFunction=e=>{
+  if(e)e.preventDefault();
+  const ray=new THREE.Raycaster();
+  ray.setFromCamera({x:0,y:0},cam);
+  const hits=ray.intersectObjects(pool,true);
+  if(hits.length>0){
+    let t=hits[0].object;
+    while(t.parent&&!t.userData.active)t=t.parent;
+    if(t.userData.active){t.userData.active=false; score++; $("s-val").textContent=score;}
+  }
 };
 
-const abilityFunction = () => {
-    if(!abilityReady) return;
-    abilityReady=false; $("ability-status").textContent="GEAR 5 ACTIVE";
-    pool.forEach(z=>{ if(z.userData.active){ z.userData.active=false; score++; } });
-    $("s-val").textContent=score;
-    setTimeout(()=>{ abilityReady=true; $("ability-status").textContent="GEAR 5: READY"; }, 10000);
+const abilityFunction=()=>{
+  if(!abilityReady)return;
+  abilityReady=false; $("ability-status").textContent="GEAR 5 ACTIVE";
+  pool.forEach(z=>{if(z.userData.active){ z.userData.active=false; score++;}});
+  $("s-val").textContent=score;
+  setTimeout(()=>{ abilityReady=true; $("ability-status").textContent="GEAR 5: READY";},10000);
 };
 
-$("fire-btn").addEventListener("touchstart", fireFunction);
-$("ability-btn").addEventListener("touchstart", abilityFunction);
-$("fire-btn").addEventListener("click", fireFunction);
-$("ability-btn").addEventListener("click", abilityFunction);
+$("fire-btn").addEventListener("touchstart",fireFunction);
+$("ability-btn").addEventListener("touchstart",abilityFunction);
+$("fire-btn").addEventListener("click",fireFunction);
+$("ability-btn").addEventListener("click",abilityFunction);
 
-// --- FIX: START BUTTON ---
-document.addEventListener("DOMContentLoaded", () => {
-    const startBtn = $("start-btn");
-    startBtn.classList.remove("hidden");
-    document.querySelector("#menu p").classList.add("hidden");
-
-    startBtn.addEventListener("click", () => {
-        run=true;
-        $("menu").classList.add("hidden");
-        $("hud").classList.remove("hidden");
-        $("crosshair").classList.remove("hidden");
-        $("controls").classList.remove("hidden");
-        setInterval(spawn, 1000);
-    });
+// --- START BUTTON ---
+document.addEventListener("DOMContentLoaded",()=>{
+  const startBtn=$("start-btn");
+  const loadingText=document.querySelector("#menu p");
+  setTimeout(()=>{ startBtn.classList.remove("hidden"); loadingText.classList.add("hidden"); },1000);
+  
+  startBtn.addEventListener("click",()=>{
+    if(run) return;
+    run=true; $("menu").classList.add("hidden"); $("hud").classList.remove("hidden");
+    $("crosshair").classList.remove("hidden"); $("controls").classList.remove("hidden");
+    if(!spawnInterval) spawnInterval=setInterval(spawn,1000);
+  });
 });
 
 // --- LOOP ---
 function animate(){
-    requestAnimationFrame(animate);
-    if(run){
-        const phi = THREE.MathUtils.degToRad(90-lat);
-        const theta = THREE.MathUtils.degToRad(lon);
-        cam.lookAt(cam.position.clone().add(new THREE.Vector3().setFromSphericalCoords(1, phi, theta)));
+  requestAnimationFrame(animate);
+  if(run){
+    const phi=THREE.MathUtils.degToRad(90-lat);
+    const theta=THREE.MathUtils.degToRad(lon);
+    cam.lookAt(cam.position.clone().add(new THREE.Vector3().setFromSphericalCoords(1,phi,theta)));
 
-        pool.forEach(z=>{
-            if(z.userData.active){
-                const dir = new THREE.Vector3(0,0.6,0).sub(z.position).normalize();
-                z.position.add(dir.multiplyScalar(0.08));
-                z.lookAt(0,0.6,0);
-
-                const dist = z.position.distanceTo(new THREE.Vector3(0,0,0));
-                if(dist<3){
-                    if(z.position.z<-1.5 && Math.abs(z.position.x)<2){
-                        z.userData.active=false; score++; $("s-val").textContent=score;
-                    } else {
-                        run=false; $("game-over").classList.remove("hidden");
-                    }
-                }
-            } else {
-                z.visible=false;
-            }
-        });
-    }
-    renderer.render(scene, cam);
+    pool.forEach(z=>{
+      if(z.userData.active){
+        const dir=new THREE.Vector3(0,0.6,0).sub(z.position).normalize();
+        z.position.add(dir.multiplyScalar(0.08));
+        z.lookAt(0,0.6,0);
+        const dist=z.position.distanceTo(new THREE.Vector3(0,0,0));
+        if(dist<3){
+          if(z.position.z<-1.5 && Math.abs(z.position.x)<2){ z.userData.active=false; score++; $("s-val").textContent=score;}
+          else{ run=false; $("game-over").classList.remove("hidden"); clearInterval(spawnInterval); spawnInterval=null;}
+        }
+      } else z.visible=false;
+    });
+  }
+  renderer.render(scene,cam);
 }
 animate();
 
-window.addEventListener('resize', () => {
-    cam.aspect = window.innerWidth / window.innerHeight;
-    cam.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-});
-</script>
+window.addEventListener('resize',()=>{ cam.aspect=window.innerWidth/window.innerHeight; cam.updateProjectionMatrix(); renderer.setSize(window.innerWidth,window.innerHeight); });
 
+</script>
 </body>
 </html>
