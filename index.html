@@ -2,127 +2,132 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-    <title>Zombie Defense: Suburbia</title>
+    <title>Daylight Zombie Defense</title>
     <style>
-        :root { --n: #2ecc71; --h: #e74c3c; --p: #9b59b6; }
         body { margin: 0; overflow: hidden; background: #87CEEB; font-family: sans-serif; touch-action: none; }
         
-        /* UI Screens */
-        .screen { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; background: rgba(255,255,255,0.9); z-index: 100; text-align: center; pointer-events: auto; }
-        .hidden { display: none !important; }
-        
-        #hud { position: absolute; top: 20px; left: 20px; z-index: 10; pointer-events: none; color: #333; }
-        .stat { background: white; border-left: 5px solid var(--n); padding: 10px; margin-bottom: 5px; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-        
-        #crosshair { position: absolute; inset: 50%; width: 24px; height: 24px; border: 2px solid #333; border-radius: 50%; transform: translate(-50%,-50%); pointer-events: none; z-index: 5; }
-        #crosshair::after { content: ''; position: absolute; top: 50%; left: 50%; width: 4px; height: 4px; background: red; border-radius: 50%; transform: translate(-50%,-50%); }
+        /* High-priority layers for the buttons */
+        #ui-layer { position: absolute; inset: 0; z-index: 1000; pointer-events: none; }
+        .interactive { pointer-events: auto; cursor: pointer; }
 
-        #controls { position: absolute; bottom: 40px; width: 100%; display: flex; justify-content: space-around; z-index: 50; pointer-events: none; }
-        .btn { width: 90px; height: 90px; border-radius: 50%; border: 4px solid #333; display: flex; justify-content: center; align-items: center; font-weight: bold; background: white; pointer-events: auto; box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
+        .screen { 
+            position: absolute; inset: 0; 
+            display: flex; flex-direction: column; justify-content: center; align-items: center; 
+            background: white; z-index: 2000; text-align: center;
+        }
         
-        button#start-btn { padding: 20px 50px; font-size: 1.5rem; background: var(--n); color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; }
+        #hud { position: absolute; top: 20px; left: 20px; color: #000; z-index: 500; }
+        .stat { background: rgba(255,255,255,0.9); padding: 10px; margin-bottom: 5px; border-left: 5px solid #2ecc71; font-weight: bold; }
+
+        #crosshair { 
+            position: absolute; top: 50%; left: 50%; width: 20px; height: 20px; 
+            border: 2px solid #000; border-radius: 50%; transform: translate(-50%,-50%); 
+            pointer-events: none; z-index: 100; 
+        }
+
+        #controls { position: absolute; bottom: 40px; width: 100%; display: flex; justify-content: space-around; }
+        .btn-game { 
+            width: 80px; height: 80px; border-radius: 50%; border: 4px solid #333; 
+            background: white; font-weight: bold; display: flex; justify-content: center; align-items: center;
+        }
+
+        .hidden { display: none !important; }
+        button#start-btn { padding: 25px 60px; font-size: 2rem; background: #2ecc71; color: white; border: none; border-radius: 15px; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div id="menu" class="screen">
-    <h1 style="font-size: 3rem; margin-bottom: 10px;">ZOMBIE ROAD</h1>
-    <p style="margin-bottom: 30px;">Protect the car. Use Gear 5 to clear the area.</p>
-    <button id="start-btn">START GAME</button>
-</div>
-
-<div id="hud" class="hidden">
-    <div class="stat">KILLS: <span id="s-val">0</span></div>
-    <div class="stat" id="ability-status" style="color:var(--p)">GEAR 5: READY</div>
-</div>
-
-<div id="crosshair" class="hidden"></div>
-
-<div id="controls" class="hidden">
-    <div id="ability-btn" class="btn" style="color:var(--p)">GEAR 5</div>
-    <div id="fire-btn" class="btn" style="color:var(--h)">FIRE</div>
+    <h1 style="font-size: 2.5rem;">ZOMBIE NEIGHBORHOOD</h1>
+    <p>Tap the green button to begin.</p>
+    <button id="start-btn" class="interactive">START MISSION</button>
 </div>
 
 <div id="game-over" class="screen hidden">
-    <h1 style="color:var(--h); font-size: 3rem;">CAR OVERRUN</h1>
-    <p>The zombies got in through the back!</p>
-    <button onclick="location.reload()" style="padding:15px 30px; background:#333; color:white; border:none; border-radius:5px;">RETRY</button>
+    <h1 style="color:red; font-size: 3rem;">YOU DIED</h1>
+    <p>Zombies climbed through the windows.</p>
+    <button onclick="location.reload()" class="interactive" style="padding:15px; background:#333; color:#fff;">RETRY</button>
+</div>
+
+<div id="ui-layer">
+    <div id="hud" class="hidden">
+        <div class="stat">SCORE: <span id="s-val">0</span></div>
+        <div class="stat" id="ability-status" style="color:#9b59b6">GEAR 5: READY</div>
+    </div>
+    <div id="crosshair" class="hidden"></div>
+    <div id="controls" class="hidden">
+        <div id="ability-btn" class="btn-game interactive" style="color:#9b59b6">GEAR 5</div>
+        <div id="fire-btn" class="btn-game interactive" style="color:red">FIRE</div>
+    </div>
 </div>
 
 <script type="module">
 import * as THREE from "https://cdn.skypack.dev/three@0.136.0";
 
 const $ = id => document.getElementById(id);
-let score = 0, run = false, abilityReady = true, pool = [];
+let score = 0, run = false, pool = [], abilityReady = true;
 let lon = 0, lat = 0;
 
-// --- Setup Renderer ---
+// --- INITIALIZE 3D ---
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87CEEB);
-const cam = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+const cam = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-// --- Lights ---
-scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+// LIGHTS
+scene.add(new THREE.AmbientLight(0xffffff, 0.8));
 const sun = new THREE.DirectionalLight(0xffffff, 1);
-sun.position.set(10, 20, 10);
+sun.position.set(5, 10, 5);
 scene.add(sun);
 
-// --- Build Realistic Car (Internal & External) ---
+// --- THE CAR ---
 const carGroup = new THREE.Group();
-const metalMat = new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.7, roughness: 0.2 });
+const metal = new THREE.MeshStandardMaterial({color: 0x333333});
 
-// Hood (Visible in front)
-const hood = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.2, 2), metalMat);
-hood.position.set(0, 0.6, -1.5);
+// Hood
+const hood = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.3, 2.5), metal);
+hood.position.set(0, 0.5, -1.5);
 carGroup.add(hood);
 
-// Dashboard
-const dash = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.4, 0.5), new THREE.MeshStandardMaterial({color:0x111111}));
-dash.position.set(0, 0.8, -0.4);
+// Dashboard & Wheel
+const dash = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.5, 0.8), metal);
+dash.position.set(0, 0.9, -0.4);
 carGroup.add(dash);
 
-// Roof and Pillars
-const roof = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.1, 2), metalMat);
-roof.position.set(0, 1.8, 0.8);
-carGroup.add(roof);
-
-const pL = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1, 0.1), metalMat);
-pL.position.set(1.1, 1.3, -0.4); carGroup.add(pL);
-const pR = pL.clone(); pR.position.x = -1.1; carGroup.add(pR);
+const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.05, 10, 20), metal);
+wheel.position.set(0.6, 1.1, -0.3);
+wheel.rotation.x = Math.PI/3;
+carGroup.add(wheel);
 
 scene.add(carGroup);
 
-// --- Neighborhood ---
-const floor = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshStandardMaterial({color: 0x558833}));
-floor.rotation.x = -Math.PI/2;
-scene.add(floor);
+// --- WORLD ---
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshStandardMaterial({color: 0x7cfc00}));
+ground.rotation.x = -Math.PI/2;
+scene.add(ground);
 
-const road = new THREE.Mesh(new THREE.PlaneGeometry(12, 200), new THREE.MeshStandardMaterial({color: 0x333333}));
-road.rotation.x = -Math.PI/2;
-road.position.y = 0.01;
+const road = new THREE.Mesh(new THREE.PlaneGeometry(10, 200), new THREE.MeshStandardMaterial({color: 0x444444}));
+road.rotation.x = -Math.PI/2; road.position.y = 0.01;
 scene.add(road);
 
-// Random Houses
-for(let i=0; i<10; i++){
-    const h = new THREE.Mesh(new THREE.BoxGeometry(5, 4, 5), new THREE.MeshStandardMaterial({color: Math.random() * 0xffffff}));
-    h.position.set(i % 2 ? 10 : -10, 2, -40 + (i*15));
+// Houses
+for(let i=0; i<8; i++) {
+    const h = new THREE.Mesh(new THREE.BoxGeometry(5, 4, 5), new THREE.MeshStandardMaterial({color: 0xffffff * Math.random()}));
+    h.position.set(i%2?8:-8, 2, -50 + (i*20));
     scene.add(h);
 }
 
-// --- Zombie Pool ---
+// --- ZOMBIES ---
 for(let i=0; i<20; i++){
     const z = new THREE.Group();
-    const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 1), new THREE.MeshStandardMaterial({color: 0x334433}));
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.3), new THREE.MeshStandardMaterial({color: 0x992222}));
-    head.position.y = 0.8;
-    z.add(body, head);
-    z.visible = false;
-    z.userData = { active: false };
-    scene.add(z);
-    pool.push(z);
+    const b = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 1), new THREE.MeshStandardMaterial({color: 0x445533}));
+    const h = new THREE.Mesh(new THREE.SphereGeometry(0.35), new THREE.MeshStandardMaterial({color: 0xff0000}));
+    h.position.y = 0.8;
+    z.add(b, h);
+    z.visible = false; z.userData = {active: false};
+    scene.add(z); pool.push(z);
 }
 
 const spawn = () => {
@@ -131,37 +136,35 @@ const spawn = () => {
     if(z) {
         const a = Math.random() * Math.PI * 2;
         z.position.set(Math.cos(a)*25, 0.8, Math.sin(a)*25);
-        z.userData.active = true;
-        z.visible = true;
+        z.userData.active = true; z.visible = true;
     }
 }
 
-// --- Input Handling ---
+// --- CONTROLS ---
 let px, py, isDown = false;
 window.addEventListener('touchstart', e => { 
     isDown = true; px = e.touches[0].clientX; py = e.touches[0].clientY; 
-}, {passive: false});
+});
 window.addEventListener('touchend', () => isDown = false);
 window.addEventListener('touchmove', e => {
     if(!run || !isDown) return;
     lon -= (e.touches[0].clientX - px) * 0.3;
     lat = Math.max(-20, Math.min(50, lat + (e.touches[0].clientY - py) * 0.3));
     px = e.touches[0].clientX; py = e.touches[0].clientY;
-}, {passive: false});
+});
 
-// --- Buttons ---
-$("start-btn").onclick = () => {
+// --- BUTTON LOGIC ---
+$("start-btn").addEventListener('click', () => {
     run = true;
     $("menu").classList.add("hidden");
     $("hud").classList.remove("hidden");
     $("crosshair").classList.remove("hidden");
     $("controls").classList.remove("hidden");
     setInterval(spawn, 1500);
-};
+});
 
-$("fire-btn").ontouchstart = (e) => {
+$("fire-btn").addEventListener('touchstart', (e) => {
     e.preventDefault();
-    if(!run) return;
     const ray = new THREE.Raycaster();
     ray.setFromCamera({x:0, y:0}, cam);
     const hits = ray.intersectObjects(pool, true);
@@ -173,50 +176,41 @@ $("fire-btn").ontouchstart = (e) => {
             score++; $("s-val").textContent = score;
         }
     }
-};
+});
 
-$("ability-btn").ontouchstart = () => {
-    if(!run || !abilityReady) return;
+$("ability-btn").addEventListener('touchstart', () => {
+    if(!abilityReady) return;
     abilityReady = false;
-    $("ability-status").textContent = "GEAR 5 ACTIVE!";
+    $("ability-status").textContent = "GEAR 5 COOLDOWN";
     pool.forEach(z => { if(z.userData.active) { z.userData.active = false; score++; } });
     $("s-val").textContent = score;
     setTimeout(() => { 
-        abilityReady = true; 
-        $("ability-status").textContent = "GEAR 5: READY"; 
+        abilityReady = true; $("ability-status").textContent = "GEAR 5: READY"; 
     }, 10000);
-};
+});
 
-// --- Render Loop ---
+// --- GAME LOOP ---
 function animate() {
     requestAnimationFrame(animate);
     if(run) {
-        // Camera Direction
         const phi = THREE.MathUtils.degToRad(90 - lat);
         const theta = THREE.MathUtils.degToRad(lon);
-        const target = new THREE.Vector3().setFromSphericalCoords(1, phi, theta);
-        cam.lookAt(cam.position.clone().add(target));
+        cam.lookAt(cam.position.clone().add(new THREE.Vector3().setFromSphericalCoords(1, phi, theta)));
 
         pool.forEach(z => {
             if(z.userData.active) {
                 const dir = new THREE.Vector3(0, 0.8, 0).sub(z.position).normalize();
                 z.position.add(dir.multiplyScalar(0.06));
                 z.lookAt(0, 0.8, 0);
-
-                const d = z.position.distanceTo(new THREE.Vector3(0,0,0));
-                if(d < 2.8) {
-                    // Front bumper check
+                if(z.position.distanceTo(new THREE.Vector3(0,0,0)) < 2.8) {
                     if(z.position.z < -1.5 && Math.abs(z.position.x) < 1.5) {
-                        z.userData.active = false;
-                        score++; $("s-val").textContent = score;
+                        z.userData.active = false; score++; $("s-val").textContent = score;
                     } else {
-                        run = false;
-                        $("game-over").classList.remove("hidden");
+                        run = false; $("game-over").classList.remove("hidden");
                     }
                 }
             } else {
-                z.scale.lerp(new THREE.Vector3(0.01, 0.01, 0.01), 0.2);
-                if(z.scale.x < 0.1) z.visible = false;
+                z.scale.set(0,0,0);
             }
         });
     }
@@ -224,7 +218,6 @@ function animate() {
 }
 animate();
 
-// Handle Resize
 window.addEventListener('resize', () => {
     cam.aspect = window.innerWidth / window.innerHeight;
     cam.updateProjectionMatrix();
